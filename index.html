@@ -70,6 +70,16 @@ h1 span{color:var(--ball)}
 .rules li{display:grid;grid-template-columns:92px 1fr;gap:10px;font-size:14px;line-height:1.4;border-top:1px solid rgba(243,239,227,.12);padding-top:8px}
 .rules b{font-family:var(--disp);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-size:13px}
 .ctrls{font-size:13px;color:var(--muted)}
+.modes{display:grid;gap:10px}
+.mode{display:grid;gap:3px;text-align:left;background:var(--panel);color:var(--chalk);border:1.5px solid rgba(243,239,227,.2);padding:12px 14px;cursor:pointer;font-family:var(--body)}
+.mode b{font-family:var(--disp);font-weight:800;font-size:22px;letter-spacing:.06em;text-transform:uppercase;color:var(--ball)}
+.mode span{font-size:13px;color:var(--chalk);opacity:.85}
+.mode:hover,.mode:focus-visible{border-color:var(--ball);outline:none}
+.picks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px}
+.pickc{background:var(--home);color:#fff;border:0;padding:12px;cursor:pointer;display:grid;gap:2px;text-align:left;font-family:var(--body)}
+.pickc b{font-family:var(--disp);font-weight:800;font-size:34px;line-height:1}
+.pickc span{font-size:12px;opacity:.9;text-transform:uppercase;letter-spacing:.06em}
+.pickc:hover,.pickc:focus-visible{outline:3px solid var(--ball)}
 #go{justify-self:start;font-family:var(--disp);font-weight:800;font-size:20px;letter-spacing:.08em;text-transform:uppercase;background:var(--ball);color:var(--ink);border:0;padding:12px 30px;cursor:pointer;box-shadow:0 4px 0 #a9811a}
 #go:focus-visible,#act:focus-visible{outline:3px solid var(--chalk);outline-offset:3px}
 #go:active{transform:translateY(3px);box-shadow:0 1px 0 #a9811a}
@@ -92,10 +102,19 @@ h1 span{color:var(--ball)}
 
 <div id="ov">
   <div class="card" id="card">
-    <div class="eyebrow">Prototype · moteur ballon v2</div>
+    <div class="eyebrow">Volley 3D · solo contre l'IA</div>
     <h1>SIDE<br><span>OUT</span></h1>
-    <p>Volley en 6 contre 6. Tu joues les bleus, l'IA les rouges. Set décisif en 15 points, 2 points d'écart.</p>
+    <p>Tu joues les bleus, l'IA les rouges. Set décisif en 15 points, 2 points d'écart.</p>
+    <div class="modes">
+      <button id="goPlayer" class="mode"><b>Mode Joueur</b><span>4 contre 4 · tu incarnes un seul joueur, l'IA joue tes coéquipiers</span></button>
+      <button id="goTeam" class="mode"><b>Mode Équipe</b><span>6 contre 6 · tu diriges toute l'équipe, rotations et libéro</span></button>
+    </div>
+    <div id="pick" hidden>
+      <div class="eyebrow">Choisis ton joueur</div>
+      <div class="picks" id="picks"></div>
+    </div>
     <ul class="rules">
+      <li><b>Mode Joueur</b><span>Tu contrôles uniquement ton joueur, entouré de jaune, et tu te déplaces librement. Tes coéquipiers IA prennent les ballons qui tombent chez eux. Appuie sur A ou E près d'un ballon qui leur est destiné pour le prendre toi-même.</span></li>
       <li><b>Commandes</b><span>Flèches : direction. A : toucher le ballon (touche haute si le ballon est haut, manchette s'il est bas). Z : deuxième main du passeur, ou balle placée en l'air. E : saut, puis frappe. R : service. C : vue, V : cercle de chute.</span></li>
       <li><b>Réception</b><span>Place-toi sous le ballon et joue A au contact : touche haute si le ballon arrive haut, manchette s'il arrive bas. La flèche tenue choisit la réception : ↑ courte, ↓ longue, ←→ décalée. Tôt = tendue, tard = haute.</span></li>
       <li><b>Défense</b><span>A maintenu = plongeon dans la direction des flèches. En aide pro, A avant la frappe adverse = pas d'appel.</span></li>
@@ -106,7 +125,6 @@ h1 span{color:var(--ball)}
       <li><b>Rotations</b><span>5-1 avec libéro. On tourne à chaque side-out, le joueur en P1 sert.</span></li>
     </ul>
     <div class="ctrls">Téléphone : joystick et boutons A Z E R. Entrée ou Espace pour lancer la partie.</div>
-    <button id="go">Jouer</button>
   </div>
 </div>
 
@@ -467,6 +485,15 @@ function rallyPositions(t){
   }
 }
 const setterOf=t=>teamOf(t).find(p=>p.role==='S');
+/* Deux modes : 'team' = tu diriges toute l'équipe bleue ; 'player' = 4 contre 4, tu ne contrôles que ton joueur (S.me) */
+function isHuman(p){return!!p&&(S.mode==='player'?p===S.me:p.team===0);}
+const four=t=>roster(t).filter(p=>!p.lib).slice(0,4);
+const HOME4=[[2.1,-2.2],[2.1,2.2],[6.3,-2.3],[6.3,2.3]];
+function lineup4(t){
+  roster(t).forEach(p=>{p.onCourt=false;p.mesh.visible=false;});
+  four(t).forEach((p,i)=>{p.onCourt=true;p.mesh.visible=true;p.front=i<2;p.home.copy(W2(t,HOME4[i][0],HOME4[i][1]));});
+}
+function isFront(p){return S.mode==='player'?Math.abs(p.pos.x)<4.2:p.front;}
 function rotLabel(t){const st=ROT[t].findIndex(p=>p.role==='S')+1;return 'P'+st;}
 
 /* ---------- Joueurs Blender : maillage d'un seul tenant, piloté par le squelette de poses ---------- */
@@ -576,7 +603,7 @@ try{
 }catch(e){console.warn(e);}
 
 /* ---------- État ---------- */
-const S={score:[0,0],server:0,phase:'intro',t:0,ball:{p:new V3(0,1,0),v:new V3(),prev:new V3(0,1,0)},
+const S={mode:'team',me:null,svIdx:[0,0],score:[0,0],server:0,phase:'intro',t:0,ball:{p:new V3(0,1,0),v:new V3(),prev:new V3(0,1,0)},
   touches:0,lastTeam:-1,lastPlayer:null,lastKind:'',plan:null,lock:false,netHit:false,antenna:false,
   path:[],launchT:0,pressT:-9,deadT:0,pro:false,opp:null,splitLand:null,boostUntil:0,slowUntil:0,holding:false,downT:0,pErr:.05,serverP:null,aiServeT:0,aiHit:false,over:false};
 
@@ -641,7 +668,10 @@ function planNext(){
   if(!hit)return;
   const P=new V3(hit.x,0,hit.z);
   const excl=team===S.lastTeam?S.lastPlayer:null;let player;
-  if(kind==='set'){const st=setterOf(team);player=st&&st!==excl?st:(teamOf(team).find(p=>p.lib&&p!==excl)||nearest(team,P,excl));}
+  if(S.mode==='player'){
+    player=nearest(team,P,excl);
+    if(team===0&&S.me&&S.me!==excl&&player!==S.me&&hdist(S.me.pos,P)<hdist(player.pos,P)+0.8)player=S.me;
+  }else if(kind==='set'){const st=setterOf(team);player=st&&st!==excl?st:(teamOf(team).find(p=>p.lib&&p!==excl)||nearest(team,P,excl));}
   else if(kind==='spike'){
     const back=hdist(P,new V3(own(team)*3.4,0,P.z))<1.2||Math.abs(P.x)>2.6;
     const elig=teamOf(team).filter(p=>p!==excl&&!p.lib&&p.role!=='S'&&(back?!p.front:p.front));
@@ -650,8 +680,8 @@ function planNext(){
     const st=setterOf(team),cand=teamOf(team).filter(p=>p!==excl&&p!==st).sort((a,b)=>hdist(a.pos,P)-hdist(b.pos,P))[0];
     player=cand&&!(st&&st!==excl&&hdist(st.pos,P)+1.5<hdist(cand.pos,P))?cand:nearest(team,P,excl);
   }
-  S.plan={team,touch,kind,h,P,t:S.launchT+hit.t,player,jumped:false,evalJump:false,lost:false};
-  if(team===0) setCall(kind,touch); else setCall(null);
+  S.plan={team,touch,kind,h,P,t:S.launchT+hit.t,player,excl,jumped:false,evalJump:false,lost:false};
+  if(isHuman(player)) setCall(kind,touch); else setCall(null);
   if(team===1&&kind==='spike')setupHumanBlock();
 }
 
@@ -669,7 +699,7 @@ const SETS={
   PI:{x:3.4,z:0.2,T:1.0,risk:1.1,name:'pipe',bonus:.06}
 };
 function setChoice(team,ix,iy){
-  if(team===1){const r=Math.random();return SETS[r<.3?'GH':r<.5?'DH':r<.65?'GT':r<.8?'CR':r<.9?'DT':'PI'];}
+  if(!team){const r=Math.random();return SETS[r<.3?'GH':r<.5?'DH':r<.65?'GT':r<.8?'CR':r<.9?'DT':'PI'];}
   if(Math.hypot(ix,iy)<0.35)return SETS.GH;
   const a=Math.atan2(ix,iy)*180/Math.PI;
   if(Math.abs(a)<22.5)return SETS.CR;
@@ -685,12 +715,12 @@ function contact(pl,kind,q,over){
   S.lastTeam=team;S.lastPlayer=pl;S.lastKind=kind;pl.anim=0.25;pl.act={kind,t:0};
   if(team===1){players.forEach(p=>{p.blockTo=null;});S.block=null;}
   if(team===0){S.hb=null;S.pendingHB=null;}
-  if(!S.recvSet&&team!==S.server&&kind!=='serve'){S.recvSet=true;rallyPositions(team);}
-  const {ix,iy}=team===0?inputVec():{ix:0,iy:0};
+  if(S.mode==='team'&&!S.recvSet&&team!==S.server&&kind!=='serve'){S.recvSet=true;rallyPositions(team);}
+  const H=isHuman(pl),{ix,iy}=H?inputVec():{ix:0,iy:0};
   let tgt,T,spin=0,flt=0,recep=null,setName='';
   if(kind==='serve'){
     flt=1.8;
-    if(team===0){
+    if(H){
       const depth=iy>0.45?8.0:iy<-0.45?3.5:6.5;const [ex,ez]=err((1-q)*2.6);
       tgt=new V3(dir*depth+ex,R,ix*3.6+ez);T=(depth<4?1.45:depth>7?1.25:1.3)+(1-q)*0.3;
     }else{
@@ -700,7 +730,7 @@ function contact(pl,kind,q,over){
   }else if(kind==='bump'){
     if(S.touches>=3){const [ex,ez]=err((1-q)*2);tgt=new V3(dir*rnd(4,7)+ex,R,rnd(-3,3)+ez);T=1.7;}
     else if(q<0.15){tgt=new V3(s*rnd(3,11),R,rnd(-7,7));T=rnd(1,1.5);}
-    else if(S.touches===2){const [ex,ez]=err((1-q)*2);tgt=new V3(s*1.1+ex,3.0,pickZone(team,ix)+ez);T=1.25;}
+    else if(S.touches===2){const [ex,ez]=err((1-q)*2);tgt=new V3(s*1.1+ex,3.0,pickZone(H?0:1,ix)+ez);T=1.25;}
     else{
       // Réception intentionnelle : direction = profondeur et placement, hauteur de contact = tempo
       const h=over?0.9+(b.p.y-2.2)*0.6:b.p.y,ten=clamp((h-0.9)/0.55,-1,1);
@@ -717,11 +747,11 @@ function contact(pl,kind,q,over){
     const [ex,ez]=err((1-q)*1.0);tgt=new V3(dir*(iy>0.45?4.5:rnd(1.2,2.4))+ex,R,ix*3.4+ez);T=iy>0.45?0.75:0.95;spin=iy>0.45?3:-1;
     setName=iy>0.45?'deuxième main appuyée':'deuxième main';
   }else if(kind==='set'){
-    let c=setChoice(team,ix,iy);const zs=team===0?1:-1;
+    let c=setChoice(H,ix,iy);const zs=team===0?1:-1;
     if(c.z>1.5&&!teamOf(team).some(p=>p.front&&p.role==='O'))c={x:3.4,z:3.0,T:1.15,risk:1.1,name:'arrière droite',bonus:.04};const [ex,ez]=err((1-q)*1.6*c.risk);
-    tgt=new V3(s*c.x+ex*0.6,3.0,c.z*zs+ez);T=c.T;S.setBonus=team===0?c.bonus:0;setName=c.name;
+    tgt=new V3(s*c.x+ex*0.6,3.0,c.z*zs+ez);T=c.T;S.setBonus=H?c.bonus:0;setName=c.name;
   }else{
-    if(team===0){
+    if(H){
       const A=S.atk||{type:'E',desc:false},type=A.type==='Z'?(iy<-0.45?'feinte':'placée'):'smash';
       let depth=iy>0.45?7.9:iy<-0.45?(type==='feinte'?2.0:3.2):5.6;
       const tz=ix*3.7,az=pl.pos.z;
@@ -741,7 +771,7 @@ function contact(pl,kind,q,over){
   if(team===0&&kind==='spike')setupBlockEvent(q);
   if(team===1&&kind==='spike'&&S.hb){S.hb.active=false;S.pendingHB={q};}
   const kmh=Math.round(S.ball.v.length()*3.6);
-  if(team===0){
+  if(H){
     S.pErr=kind==='spike'?Math.min(0.85,0.15+0.45*q+(S.setBonus||0)):kind==='serve'?0.05+0.3*q:0.04;
     const word=q>=.8?'Parfait':q>=.5?'Bien':q>=.2?'Juste':'Mauvais contact';
     const label={serve:'Service',bump:over?'Touche haute':'Manchette',set:'Passe',spike:'Smash',dump:'Passeur'}[kind];
@@ -750,7 +780,7 @@ function contact(pl,kind,q,over){
       const grade=over?'Passée à l\'adversaire':d<=0.8?'Parfaite':d<=1.8?'Positive':d<=3?'Moyenne':'Négative';
       flash('Réception '+(recep.name?recep.name+' · ':'')+grade,over||d>3?'#f08a80':'var(--ball)',1100);
     }else flash((kind==='spike'&&setName?setName.charAt(0).toUpperCase()+setName.slice(1):label+(setName?' '+setName:''))+' · '+word+((kind==='spike'||kind==='serve')?' · '+kmh+' km/h':''),'var(--ball)');
-  }else if(kind==='spike'||kind==='serve'){
+  }else if(team===1&&(kind==='spike'||kind==='serve')){
     flash((kind==='serve'?'Service adverse':'Smash adverse')+' · '+kmh+' km/h','#f08a80',800);
   }
   planNext();
@@ -760,32 +790,32 @@ function contact(pl,kind,q,over){
 /* ---------- Service ---------- */
 function nextRally(){
   if(S.over){showOver();return;}
-  [0,1].forEach(t=>{lineup(t);servePositions(t);});S.recvSet=false;
+  if(S.mode==='player')[0,1].forEach(lineup4);else [0,1].forEach(t=>{lineup(t);servePositions(t);});S.recvSet=false;
   players.forEach(p=>{p.pos.copy(p.home);p.vel.set(0,0,0);p.y=0;p.jumpT=-1;p.hopT=-1;p.dive=null;p.sad=0;p.prev.copy(p.pos);p.prevY=0;});
   S.opp=null;S.splitLand=null;S.boostUntil=0;S.slowUntil=0;S.holding=false;S.block=null;S.blockEvt=null;S.atk=null;S.hb=null;S.pendingHB=null;
   players.forEach(p=>{p.blockTo=null;p.blocking=false;p.approach=null;});
-  const sv=teamOf(S.server).find(p=>p.rotPos===1);S.serverP=sv;
+  const sv=S.mode==='player'?four(S.server)[S.svIdx[S.server]%4]:teamOf(S.server).find(p=>p.rotPos===1);S.serverP=sv;
   sv.pos.set(own(S.server)*9.8,0,(S.server===0?1:-1)*2.4);
-  $('meta').textContent='Bleu en '+rotLabel(0)+' · Rouge en '+rotLabel(1)+' · service n°'+sv.num;
+  $('meta').textContent=S.mode==='player'?'4 contre 4 · tu es le n°'+S.me.num+' · service n°'+sv.num:'Bleu en '+rotLabel(0)+' · Rouge en '+rotLabel(1)+' · service n°'+sv.num;
   S.phase='serve';S.plan=null;S.lock=false;S.netHit=false;S.antenna=false;S.lastTeam=-1;S.touches=0;
   S.aiServeT=1.4;landMark.visible=false;S.ball.v.set(0,0,0);
-  if(S.server===0)setCallRaw('SERVICE','R pour lancer, puis R en haut du lancer');else setCall(null);
+  if(isHuman(sv))setCallRaw('SERVICE','R pour lancer, puis R en haut du lancer');else setCall(null);
   updateScore();
 }
 function holdBall(){const sv=S.serverP;S.ball.p.set(sv.pos.x-own(sv.team)*0.35,1.45,sv.pos.z);}
 function toss(){
   const sv=S.serverP;S.ball.p.set(sv.pos.x-own(sv.team)*0.3,1.5,sv.pos.z);S.ball.v.set(0,5.2,0);S.shot=null;S.flightT=0;
   S.phase='toss';S.aiHit=false;
-  if(sv.team===0)setCallRaw('FRAPPE','R au sommet du lancer');
+  if(isHuman(sv))setCallRaw('FRAPPE','R au sommet du lancer');
 }
 function serveHit(qAi){
   const b=S.ball,sv=S.serverP;let q;
-  if(sv.team===0){
+  if(isHuman(sv)&&qAi===undefined){
     if(!(b.p.y>1.7&&b.p.y<3.4))return;
     q=clamp(1-Math.abs(b.p.y-2.75)/0.9,0.05,1);
   }else{q=qAi;S.aiHit=true;}
   S.phase='play';S.lastTeam=-1;setCall(null);
-  rallyPositions(sv.team);
+  if(S.mode==='team')rallyPositions(sv.team);
   contact(sv,'serve',q);
 }
 
@@ -812,7 +842,7 @@ function groundHit(){
 function award(w,why){
   cheer={team:w,t:performance.now()/1000};
   {const lose=teamOf(1-w).filter(p=>!p.dive).sort((a,c)=>hdist(a.pos,S.ball.p)-hdist(c.pos,S.ball.p))[0];if(lose)lose.sad=0.001;}
-  S.score[w]++;if(w!==S.server){rotate(w);S.server=w;}
+  S.score[w]++;if(w!==S.server){if(S.mode==='team')rotate(w);else S.svIdx[w]++;S.server=w;}
   S.phase='dead';S.deadT=1.9;S.plan=null;S.hb=null;S.pendingHB=null;landMark.visible=false;setCall(null);
   flash((w===0?'BLEU':'ROUGE')+' · '+why,w===0?'#7fa6f2':'#f08a80',1600);
   if(S.score[w]>=15&&S.score[w]-S.score[1-w]>=2)S.over=true;
@@ -820,8 +850,14 @@ function award(w,why){
 }
 
 function contacts(){
-  const P=S.plan;if(!P||S.lock)return;const b=S.ball,pl=P.player;
-  if(P.team===1){
+  const P=S.plan;if(!P||S.lock)return;const b=S.ball;
+  if(S.mode==='player'&&P.team===0&&S.me&&S.me!==P.excl&&!P.claimed&&!P.jumped&&P.player.jumpT<0){
+    const dm=hdist(S.me.pos,P.P),dp=hdist(P.player.pos,P.P);
+    if(P.player!==S.me&&dm+0.5<dp){P.player=S.me;setCall(P.kind,P.touch);}
+    else if(P.player===S.me&&dm>dp+1.6){const o=nearest(0,P.P,P.excl);if(o&&o!==S.me){P.player=o;setCall(null);}}
+  }
+  const pl=P.player;
+  if(!isHuman(pl)){
     if(P.kind==='spike'&&!P.jumped&&S.t>=P.t-TAPEX){P.jumped=true;pl.jumpT=0;}
     if(b.v.y<0&&b.p.y<=P.h){
       const reach=P.kind==='bump'?1.5:P.kind==='set'?1.3:1.25;
@@ -917,10 +953,12 @@ function applyBlock(E){
 }
 /* Ton contre : placement le long du filet et saut (manuels en aide pro, automatiques en aide assistée) */
 function setupHumanBlock(){
-  const P=S.plan,front=teamOf(0).filter(p=>p.front);
-  const ctrl=front.slice().sort((a,b)=>Math.abs(a.pos.z-P.P.z)-Math.abs(b.pos.z-P.P.z))[0];
+  const P=S.plan,front=teamOf(0).filter(isFront);if(!front.length){S.hb=null;return;}
+  let ctrl=front.slice().sort((a,b)=>Math.abs(a.pos.z-P.P.z)-Math.abs(b.pos.z-P.P.z))[0];
+  if(S.mode==='player'&&isFront(S.me)&&Math.abs(S.me.pos.z-P.P.z)<3)ctrl=S.me;
   const partner=front.filter(p=>p!==ctrl).sort((a,b)=>Math.abs(a.pos.z)-Math.abs(b.pos.z))[0];
   S.hb={ctrl,partner,active:true,autoJ:false,partnerAt:null};
+  if(!isHuman(ctrl)){setCall(null);return;}
   setCallRaw('CONTRE',S.pro?'←→ suis l\'attaquant · E pour sauter juste après lui':'Placement et saut automatiques · ←→ corriger · E pour sauter toi-même');
 }
 function hbJump(){
@@ -929,14 +967,14 @@ function hbJump(){
 }
 function hbTick(){
   const H=S.hb;if(!H)return;const P=S.plan;
-  if(!S.pro&&!H.autoJ&&P&&P.team===1&&P.kind==='spike'&&S.t>=P.t-TAPEX+0.07){H.autoJ=true;hbJump();}
+  if((!S.pro||!isHuman(H.ctrl))&&!H.autoJ&&P&&P.team===1&&P.kind==='spike'&&S.t>=P.t-TAPEX+0.07){H.autoJ=true;hbJump();}
   if(H.partnerAt!==null&&S.t>=H.partnerAt){H.partnerAt=null;if(H.partner.jumpT<0){H.partner.jumpT=0;H.partner.blocking=true;}}
   const pend=S.pendingHB,b=S.ball;
   if(pend&&b.p.x<=-0.3){
     S.pendingHB=null;
     for(const p of [H.ctrl,H.partner]){
       if(!p.blocking)continue;
-      const top=2.3+p.y,placed=Math.abs(p.pos.x+0.45)<0.5;
+      const top=2.3+p.y,placed=Math.abs(p.pos.x+0.45)<0.6;
       if(placed&&Math.abs(b.p.z-p.pos.z)<=0.42&&b.p.y<=top+R){
         const outer=[H.ctrl,H.partner].filter(x=>x.blocking).reduce((o,x)=>Math.abs(x.pos.z)>Math.abs(o.pos.z)?x:o,p);
         const edge=p===outer&&Math.abs(b.p.z)>Math.abs(p.pos.z)+0.18,r=Math.random();
@@ -998,8 +1036,12 @@ function movePlayers(dt){
       p.vel.multiplyScalar(Math.max(0,1-dt*6));p.pos.x+=p.vel.x*dt;p.pos.z+=p.vel.z*dt;
       if(p.hopT>=HOP){p.hopT=-1;p.y=0;}
     }else if(p===S.serverP&&(S.phase==='serve'||S.phase==='toss')){
-      p.vel.set(0,0,0);if(p.team===0)p.pos.z=clamp(p.pos.z+ix*3*dt,-W+0.3,W-0.3);
-    }else if(P&&p===P.player&&P.team===0&&P.kind==='bump'){
+      p.vel.set(0,0,0);if(isHuman(p))p.pos.z=clamp(p.pos.z+ix*3*dt,-W+0.3,W-0.3);
+    }else if(S.mode==='player'&&p===S.me&&!p.approach&&!(S.hb&&S.hb.active&&p===S.hb.ctrl)){
+      // mode Joueur : déplacement libre en permanence (élan conservé en l'air)
+      if(p.jumpT>=0){p.pos.x+=p.vel.x*dt;p.pos.z+=p.vel.z*dt;}
+      else{const m=Math.hypot(ix,iy),fwd=m>0?iy/m:0,vmax=lerp(4.6,5.8,Math.max(0,fwd));accelTo(p,iy*vmax,ix*vmax,humanAcc(),dt);}
+    }else if(P&&p===P.player&&isHuman(p)&&P.kind==='bump'){
       const m=Math.hypot(ix,iy),fwd=m>0?iy/m:0,vmax=lerp(4.6,5.8,Math.max(0,fwd));
       accelTo(p,iy*vmax,ix*vmax,humanAcc(),dt);
     }else if(p.approach){
@@ -1007,18 +1049,18 @@ function movePlayers(dt){
       const nx=lerp(a.from.x,a.to.x,k),nz=lerp(a.from.z,a.to.z,k);p.vel.set((nx-p.pos.x)/dt,0,(nz-p.pos.z)/dt);p.pos.x=nx;p.pos.z=nz;
       if(k>=1){p.approach=null;p.vel.set(0,0,0);startJump(p);}
     }else if(S.hb&&S.hb.active&&p===S.hb.ctrl&&p.jumpT<0){
-      const P=S.plan,manual=S.pro||Math.abs(ix)>0.3;
+      const P=S.plan,manual=isHuman(p)&&(S.pro||Math.abs(ix)>0.3);
       if(manual){accelTo(p,0,ix*4.2,ACC_BOOST,dt);p.pos.x=lerp(p.pos.x,-0.45,Math.min(1,dt*6));}
       else drive(p,-0.45,P?P.P.z:p.pos.z,4.5,14,dt);
     }else if(S.hb&&S.hb.active&&p===S.hb.partner&&p.jumpT<0){
       const c=S.hb.ctrl,side=Math.sign(-c.pos.z)||1;drive(p,-0.45,c.pos.z+side*0.74,4.2,12,dt);
     }else if(p.blockTo&&S.phase==='play'){
       drive(p,p.blockTo.x,p.blockTo.z,4.6,12,dt);
-    }else if(P&&p===P.player&&P.team===0&&P.kind==='spike'&&S.pro&&p.jumpT<0){
+    }else if(P&&p===P.player&&isHuman(p)&&P.kind==='spike'&&S.pro&&p.jumpT<0){
       drive(p,P.P.x+s*2.4,P.P.z,6.5,Math.max(humanAcc(),ACC),dt);
     }else if(P&&p===P.player){
       const tx=P.P.x+(P.kind==='spike'?s*0.3:0);
-      drive(p,tx,P.P.z,P.team===0?6.5:5.4,P.team===0?Math.max(humanAcc(),ACC):12,dt);
+      drive(p,tx,P.P.z,isHuman(p)?6.5:5.6,isHuman(p)?Math.max(humanAcc(),ACC):12,dt);
     }else drive(p,p.home.x,p.home.z,3.4,8,dt);
     if(!(p===S.serverP&&S.phase!=='play'&&S.phase!=='dead')){
       p.pos.x=p.team===0?clamp(p.pos.x,-13,-0.3):clamp(p.pos.x,0.3,13);
@@ -1032,16 +1074,16 @@ function movePlayers(dt){
 function step(dt){
   S.t+=dt;const b=S.ball;b.prev.copy(b.p);for(const p of players){p.prev.copy(p.pos);p.prevY=p.y;}
   movePlayers(dt);
-  if(S.phase==='serve'){holdBall();if(S.server===1){S.aiServeT-=dt;if(S.aiServeT<=0)toss();}return;}
+  if(S.phase==='serve'){holdBall();if(!isHuman(S.serverP)){S.aiServeT-=dt;if(S.aiServeT<=0)toss();}return;}
   if(S.phase==='toss'){
     integrate(dt);
-    if(S.server===1&&b.v.y<=0.3&&!S.aiHit)serveHit(rnd(.55,.95));
-    else if(b.p.y<1.2&&b.v.y<0){S.phase='serve';S.aiServeT=0.8;if(S.server===0)setCallRaw('SERVICE','Relance : R pour lancer');}
+    if(!isHuman(S.serverP)&&b.v.y<=0.3&&!S.aiHit)serveHit(rnd(.55,.95));
+    else if(b.p.y<1.2&&b.v.y<0){S.phase='serve';S.aiServeT=0.8;if(isHuman(S.serverP))setCallRaw('SERVICE','Relance : R pour lancer');}
     return;
   }
   if(S.phase==='play'){
     judgeSplit();blockTick();resolveBlock();hbTick();
-    const P=S.plan;if(S.holding&&S.pressKey==='A'&&P&&P.team===0&&P.kind==='bump'&&S.t-S.downT>=0.22&&!P.player.dive)startDive(P.player);
+    const P=S.plan;if(S.holding&&S.pressKey==='A'&&P&&isHuman(P.player)&&P.kind==='bump'&&S.t-S.downT>=0.22&&!P.player.dive)startDive(P.player);
     const px=b.p.x;integrate(dt);netCheck(px);if(S.phase==='play')contacts();if(S.phase==='play'&&b.p.y<=R)groundHit();return;}
   if(S.phase==='dead'){
     integrate(dt);if(b.p.y<R){b.p.y=R;b.v.y=-b.v.y*0.45;b.v.x*=0.7;b.v.z*=0.7;}
@@ -1064,14 +1106,17 @@ function splitStep(){
   startHop();S.splitLand=S.t+HOP;
 }
 /* Commandes : flèches = direction · A manchette · Z touche haute · E saut puis frappe · R service */
-function humanPlan(){const P=S.plan;return S.phase==='play'&&P&&P.team===0?P:null;}
+function humanPlan(){const P=S.plan;return S.phase==='play'&&P&&isHuman(P.player)?P:null;}
 function oppBall(){return((S.phase==='serve'||S.phase==='toss')&&S.server===1)||(S.phase==='play'&&!humanPlan());}
 function act(k){
   if(S.phase==='intro')return;
+  // mode Joueur : appuyer près du ballon destiné à un coéquipier, c'est « j'ai ! »
+  const Q=S.plan;
+  if(S.mode==='player'&&S.phase==='play'&&Q&&Q.team===0&&Q.player!==S.me&&S.me!==Q.excl&&k!=='R'&&hdist(S.me.pos,Q.P)<3.2&&Q.player.jumpT<0){Q.player=S.me;Q.claimed=true;setCall(Q.kind,Q.touch);}
   const P=humanPlan();
-  if(k==='R'){if(S.phase==='serve'&&S.server===0)toss();else if(S.phase==='toss'&&S.server===0)serveHit();return;}
+  if(k==='R'){if(S.phase==='serve'&&isHuman(S.serverP))toss();else if(S.phase==='toss'&&isHuman(S.serverP))serveHit();return;}
   if(k==='E'){
-    if(S.phase==='play'&&S.hb&&S.hb.active){hbJump();return;}
+    if(S.phase==='play'&&S.hb&&S.hb.active&&isHuman(S.hb.ctrl)){hbJump();return;}
     if(P&&P.kind==='spike'){
       const pl=P.player;
       if(pl.jumpT>=0)S.hitReq='E';
@@ -1094,7 +1139,7 @@ addEventListener('keydown',e=>{
   if(e.code==='KeyV'&&!e.repeat){toggleAid();return;}
   if(['Space','Enter'].includes(e.code)){
     e.preventDefault();if(e.repeat)return;
-    if(S.phase==='intro'||$('ov').hidden===false){startGame();return;}
+    if(S.phase==='intro'||$('ov').hidden===false){if($('goTeam'))return;startGame(S.mode,S.me);return;}
   }
   const k=KEYMAP[(e.key||'').toLowerCase()];
   if(k){e.preventDefault();if(!e.repeat)act(k);}
@@ -1137,7 +1182,7 @@ function updateScore(){
   $('t0').classList.toggle('serving',S.server===0);$('t1').classList.toggle('serving',S.server===1);
 }
 function updateHud(){
-  const P=humanPlan(),on={R:(S.phase==='serve'||S.phase==='toss')&&S.server===0,A:!!P&&P.kind!=='spike'||(S.pro&&oppBall()),Z:!!P&&(P.touch===2||(P.kind==='spike'&&P.player.jumpT>=0)),E:(P&&P.kind==='spike')||!!(S.hb&&S.hb.active)};
+  const P=humanPlan(),on={R:(S.phase==='serve'||S.phase==='toss')&&isHuman(S.serverP),A:!!P&&P.kind!=='spike'||(S.pro&&oppBall()),Z:!!P&&(P.touch===2||(P.kind==='spike'&&P.player.jumpT>=0)),E:(P&&P.kind==='spike')||!!(S.hb&&S.hb.active)};
   document.querySelectorAll('#btns button').forEach(bt=>bt.classList.toggle('on',!!on[bt.dataset.k]));
   const tEl=$('touches');
   if(S.phase==='play'&&S.lastTeam>=0&&S.lastKind!=='serve'){
@@ -1147,17 +1192,32 @@ function updateHud(){
 }
 
 /* ---------- Partie ---------- */
-function startGame(){
+const MENU_HTML=$('card').innerHTML;
+const SLOT=['Avant gauche','Avant droit','Arrière gauche','Arrière droit'];
+function bindMenu(){
+  $('goTeam').addEventListener('click',()=>startGame('team'));
+  $('goPlayer').addEventListener('click',()=>{
+    const pk=$('picks');pk.innerHTML='';
+    four(0).forEach((p,i)=>{const b=document.createElement('button');b.className='pickc';b.innerHTML=`<b>${p.num}</b><span>${SLOT[i]}</span>`;
+      b.addEventListener('click',()=>startGame('player',p));pk.appendChild(b);});
+    $('pick').hidden=false;pk.firstChild.focus();
+  });
+}
+function startGame(mode,me){
+  S.mode=mode||S.mode;S.me=me||null;S.svIdx=[0,0];
+  if(S.mode==='player'){camI=1;syncOpts();}
   $('ov').hidden=true;S.score=[0,0];S.server=0;S.over=false;S.t=0;nextRally();
 }
 function showOver(){
   const win=S.score[0]>S.score[1];S.phase='intro';setCall(null);
   $('card').innerHTML=`<div class="eyebrow">Fin du set</div><h1>${win?'VIC<br><span>TOIRE</span>':'DÉ<br><span>FAITE</span>'}</h1>
-  <p>Bleu ${S.score[0]} – ${S.score[1]} Rouge. La prochaine étape ajoute les rotations, le contre et le jeu en ligne.</p>
-  <button id="go">Rejouer</button>`;
-  $('go').addEventListener('click',startGame);$('ov').hidden=false;$('go').focus();
+  <p>Bleu ${S.score[0]} – ${S.score[1]} Rouge.</p>
+  <div class="modes"><button id="again" class="mode"><b>Rejouer</b><span>Même mode, même joueur</span></button><button id="menu" class="mode"><b>Changer de mode</b><span>Retour au menu</span></button></div>`;
+  $('again').addEventListener('click',()=>startGame(S.mode,S.me));
+  $('menu').addEventListener('click',()=>{$('card').innerHTML=MENU_HTML;bindMenu();});
+  $('ov').hidden=false;$('again').focus();
 }
-$('go').addEventListener('click',startGame);
+bindMenu();
 
 /* ---------- Rendu ---------- */
 const CAMS=['TV','Joueur','3/4 arrière','Côté','Haut'];
@@ -1173,6 +1233,7 @@ $('camBtn').addEventListener('click',e=>{cycleCam();e.currentTarget.blur();});
 $('aidBtn').addEventListener('click',e=>{toggleAid();e.currentTarget.blur();});
 syncOpts();
 function focusPlayer(){
+  if(S.mode==='player'&&S.me)return S.me;
   if(S.plan&&S.plan.team===0)return S.plan.player;
   if(S.hb)return S.hb.ctrl;
   if(S.server===0&&(S.phase==='serve'||S.phase==='toss'))return S.serverP;
@@ -1266,9 +1327,10 @@ function render(dt){
     animatePlayer(p,dt);
   }
   let target=null;
-  if(S.plan&&S.plan.team===0)target=S.plan.player;
+  if(S.mode==='player'&&S.me)target=S.me;
+  else if(S.plan&&S.plan.team===0)target=S.plan.player;
   else if(S.hb)target=S.hb.ctrl;
-  else if((S.phase==='serve'||S.phase==='toss')&&S.server===0)target=S.serverP;
+  else if((S.phase==='serve'||S.phase==='toss')&&isHuman(S.serverP))target=S.serverP;
   ctrlRing.visible=!!target;reachRing.visible=!!(target&&S.plan&&S.plan.kind==='bump');
   if(target){ctrlRing.position.set(target.pos.x,0.013,target.pos.z);reachRing.position.set(target.pos.x,0.012,target.pos.z);
     ctrlRing.material.color.setHex(S.plan&&S.plan.kind!=='bump'?0xf3efe3:0xf2c230);}
