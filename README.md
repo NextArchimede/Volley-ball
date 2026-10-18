@@ -29,6 +29,7 @@ puis ouvrir http://localhost:8000.
 | E | Saut (ou course d'élan en aide pro), puis 2e appui = frappe ; saut au contre |
 | R | Service : lancer, puis frapper au sommet |
 | C / V | Changer de vue / afficher le cercle de chute |
+| M / F | Couper le son / afficher les images par seconde |
 
 ## Fichiers
 
