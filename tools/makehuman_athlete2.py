@@ -139,7 +139,69 @@ tris = sum(len(p.vertices) - 2 for o in [h] + list(assets.values()) for p in o.d
 info = {"backNum": [0, back.z, -back.y], "frontNum": [0, front.z + 0.06, -front.y], "thigh": (B['thigh_l'][0] - B['calf_l'][0]).length,
         "calf": (B['calf_l'][0] - B['foot_l'][0]).length, "top": max(p.z for p in pts) + 0.03, "hairs": ['hair_' + n for n in HAIRS], "tris": tris}
 bpy.context.scene["sideout"] = json.dumps(info); print("INFO", json.dumps(info))
-bpy.ops.export_scene.gltf(filepath=f'{OUT}/mh2.glb', export_format='GLB', export_skins=True, export_animations=False, export_extras=True, export_image_format='AUTO')
+
+# --- Animations Mixamo (capture de mouvement) transférées sur le squelette du joueur
+from mathutils import Quaternion
+MX = '/tmp/claude-0/mx'
+MAP = {'pelvis': 'Hips', 'spine_01': 'Spine', 'spine_02': 'Spine1', 'spine_03': 'Spine2', 'neck_01': 'Neck', 'head': 'Head'}
+for sd, SD in (('l', 'Left'), ('r', 'Right')):
+    MAP.update({f'clavicle_{sd}': f'{SD}Shoulder', f'upperarm_{sd}': f'{SD}Arm', f'lowerarm_{sd}': f'{SD}ForeArm', f'hand_{sd}': f'{SD}Hand',
+                f'thigh_{sd}': f'{SD}UpLeg', f'calf_{sd}': f'{SD}Leg', f'foot_{sd}': f'{SD}Foot', f'ball_{sd}': f'{SD}ToeBase'})
+    for f_, F in (('thumb', 'Thumb'), ('index', 'Index'), ('middle', 'Middle'), ('ring', 'Ring'), ('pinky', 'Pinky')):
+        for i in (1, 2, 3): MAP[f'{f_}_0{i}_{sd}'] = f'{SD}Hand{F}{i}'
+print('SIDE', 'thigh_l x=', round(B['thigh_l'][0].x, 3))
+T = rig; TWq = T.matrix_world.to_quaternion(); tb = T.data.bones
+depth = lambda b: 0 if not b.parent else 1 + depth(b.parent)
+order = sorted([b.name for b in tb], key=lambda n: depth(tb[n]))
+restA = {b.name: b.matrix_local.to_quaternion() for b in tb}
+restW = {n: TWq @ restA[n] for n in restA}
+legT = (B['thigh_l'][0] - B['calf_l'][0]).length + (B['calf_l'][0] - B['foot_l'][0]).length
+for pb in T.pose.bones: pb.rotation_mode = 'QUATERNION'
+T.animation_data_create()
+CLIPS = [('idle', 'idle.fbx', 1), ('diveL', 'dive.fbx', 1), ('diveR', 'dive2.fbx', 1), ('miss', 'miss.fbx', 1)]
+for cname, fname, step in CLIPS:
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.fbx(filepath=f'{MX}/{fname}')
+    new = [o for o in bpy.data.objects if o not in before]
+    src = [o for o in new if o.type == 'ARMATURE'][0]; SW = src.matrix_world; sb = src.data.bones
+    f0, f1 = map(int, src.animation_data.action.frame_range)
+    align = {}
+    for t, sname in MAP.items():
+        if t not in tb or 'mixamorig:' + sname not in sb: continue
+        qs = (SW @ sb['mixamorig:' + sname].matrix_local).to_quaternion()
+        ds = qs @ Vector((0, 1, 0)); dt_ = restW[t] @ Vector((0, 1, 0))
+        align[t] = (qs.inverted(), dt_.rotation_difference(ds))
+    hipRest = (SW @ sb['mixamorig:Hips'].matrix_local).translation
+    legS = ((SW @ sb['mixamorig:LeftUpLeg'].matrix_local).translation - (SW @ sb['mixamorig:LeftLeg'].matrix_local).translation).length + \
+           ((SW @ sb['mixamorig:LeftLeg'].matrix_local).translation - (SW @ sb['mixamorig:LeftFoot'].matrix_local).translation).length
+    act = bpy.data.actions.new(cname); act.use_fake_user = True; T.animation_data.action = act
+    for f in range(f0, f1 + 1, step):
+        bpy.context.scene.frame_set(f)
+        poseA = {}
+        for n in order:
+            b = tb[n]; par = b.parent.name if b.parent else None
+            if n in align:
+                qSW = (SW @ src.pose.bones['mixamorig:' + MAP[n]].matrix).to_quaternion()
+                si, qa = align[n]
+                qA = TWq.inverted() @ (qSW @ si @ qa @ restW[n])
+            else:
+                qA = (poseA[par] @ (restA[par].inverted() @ restA[n])) if par else restA[n]
+            poseA[n] = qA
+            basis = ((restA[par].inverted() @ restA[n]).inverted() @ poseA[par].inverted() @ qA) if par else (restA[n].inverted() @ qA)
+            pb = T.pose.bones[n]; pb.rotation_quaternion = basis; pb.keyframe_insert('rotation_quaternion', frame=f)
+        hipW = (SW @ src.pose.bones['mixamorig:Hips'].matrix).translation
+        dz = (hipW.z - hipRest.z) * legT / legS
+        off = TWq.inverted() @ Vector((0, 0, dz))
+        pp = T.pose.bones['pelvis']; pp.location = restA['pelvis'].inverted() @ off; pp.keyframe_insert('location', frame=f)
+    print('CLIP', cname, f0, f1)
+    for o in new: bpy.data.objects.remove(o, do_unlink=True)
+for a_ in list(bpy.data.actions):
+    if a_.name not in [c[0] for c in CLIPS]: bpy.data.actions.remove(a_)
+T.animation_data.action = None
+for pb in T.pose.bones: pb.rotation_quaternion = Quaternion(); pb.location = Vector()
+bpy.context.scene.frame_set(1)
+
+bpy.ops.export_scene.gltf(filepath=f'{OUT}/mh2.glb', export_format='GLB', export_skins=True, export_animations=True, export_animation_mode='ACTIONS', export_frame_step=2, export_extras=True, export_image_format='AUTO')
 
 # --- peaux alternatives pour varier les joueurs
 from PIL import Image
