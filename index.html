@@ -87,8 +87,8 @@ h1 span{color:var(--ball)}
 <div id="touches" hidden><span id="tlab">TOUCHES</span><i></i><i></i><i></i></div>
 <div id="call"><div class="k" id="callK"></div><div class="h" id="callH"></div></div>
 <div id="flash"></div>
-<div id="hint"><kbd>Flèches</kbd> direction · <kbd>A</kbd> manchette · <kbd>Z</kbd> touche haute · <kbd>E</kbd> saut puis frappe · <kbd>R</kbd> service · <kbd>C</kbd> vue · <kbd>V</kbd> cercle</div>
-<div id="pad"><div id="stick"><div id="knob"></div></div><div id="btns"><button type="button" data-k="A">A<small>Manchette</small></button><button type="button" data-k="Z">Z<small>Touche</small></button><button type="button" data-k="E">E<small>Saut</small></button><button type="button" data-k="R">R<small>Service</small></button></div></div>
+<div id="hint"><kbd>Flèches</kbd> direction · <kbd>A</kbd> touche (manchette ou haute) · <kbd>Z</kbd> deuxième main / balle placée · <kbd>E</kbd> saut puis frappe · <kbd>R</kbd> service · <kbd>C</kbd> vue · <kbd>V</kbd> cercle</div>
+<div id="pad"><div id="stick"><div id="knob"></div></div><div id="btns"><button type="button" data-k="A">A<small>Touche</small></button><button type="button" data-k="Z">Z<small>2e main</small></button><button type="button" data-k="E">E<small>Saut</small></button><button type="button" data-k="R">R<small>Service</small></button></div></div>
 
 <div id="ov">
   <div class="card" id="card">
@@ -96,10 +96,10 @@ h1 span{color:var(--ball)}
     <h1>SIDE<br><span>OUT</span></h1>
     <p>Volley en 6 contre 6. Tu joues les bleus, l'IA les rouges. Set décisif en 15 points, 2 points d'écart.</p>
     <ul class="rules">
-      <li><b>Commandes</b><span>Flèches : direction. A : manchette. Z : touche haute. E : saut, puis frappe. R : service. C : vue, V : cercle de chute.</span></li>
-      <li><b>Réception</b><span>Place-toi sous le ballon et joue A (manchette) ou Z (touche haute) au contact. La flèche tenue choisit la réception : ↑ courte, ↓ longue, ←→ décalée. Tôt = tendue, tard = haute.</span></li>
+      <li><b>Commandes</b><span>Flèches : direction. A : toucher le ballon (touche haute si le ballon est haut, manchette s'il est bas). Z : deuxième main du passeur, ou balle placée en l'air. E : saut, puis frappe. R : service. C : vue, V : cercle de chute.</span></li>
+      <li><b>Réception</b><span>Place-toi sous le ballon et joue A au contact : touche haute si le ballon arrive haut, manchette s'il arrive bas. La flèche tenue choisit la réception : ↑ courte, ↓ longue, ←→ décalée. Tôt = tendue, tard = haute.</span></li>
       <li><b>Défense</b><span>A maintenu = plongeon dans la direction des flèches. En aide pro, A avant la frappe adverse = pas d'appel.</span></li>
-      <li><b>Passe</b><span>Z au contact : ← gauche, → droite, ↑ centre rapide, ↓ pipe, diagonales avant = balles tendues. A fait une passe en manchette.</span></li>
+      <li><b>Passe</b><span>A au contact : ← gauche, → droite, ↑ centre rapide, ↓ pipe, diagonales avant = balles tendues. Z = deuxième main : le passeur renvoie directement (↑ pour l'appuyer au fond).</span></li>
       <li><b>Attaque</b><span>E pour sauter (en aide pro : course d'élan), puis E de nouveau pour frapper quand le ballon arrive à ta main. Z en l'air donne une balle placée, avec ↓ une feinte. ←→ vise ligne ou diagonale, ↑ le fond.</span></li>
       <li><b>Contre</b><span>E pour sauter au contre, juste après l'attaquant. En aide assistée, le saut est automatique.</span></li>
       <li><b>Service</b><span>R pour lancer, R pour frapper au sommet du lancer. ←→ vise, ↑ profond, ↓ court.</span></li>
@@ -684,6 +684,9 @@ function contact(pl,kind,q,over){
       tgt=new V3(s*depth+ex,2.2,zb+ez);T=1.5-0.55*ten;
       recep={name:[over?'en touche haute':'',depthName,tempoName].filter(Boolean).join(' '),tgt};
     }
+  }else if(kind==='dump'){
+    const [ex,ez]=err((1-q)*1.0);tgt=new V3(dir*(iy>0.45?4.5:rnd(1.2,2.4))+ex,R,ix*3.4+ez);T=iy>0.45?0.75:0.95;spin=iy>0.45?3:-1;
+    setName=iy>0.45?'deuxième main appuyée':'deuxième main';
   }else if(kind==='set'){
     let c=setChoice(team,ix,iy);const zs=team===0?1:-1;
     if(c.z>1.5&&!teamOf(team).some(p=>p.front&&p.role==='O'))c={x:3.4,z:3.0,T:1.15,risk:1.1,name:'arrière droite',bonus:.04};const [ex,ez]=err((1-q)*1.6*c.risk);
@@ -712,7 +715,7 @@ function contact(pl,kind,q,over){
   if(team===0){
     S.pErr=kind==='spike'?Math.min(0.85,0.15+0.45*q+(S.setBonus||0)):kind==='serve'?0.05+0.3*q:0.04;
     const word=q>=.8?'Parfait':q>=.5?'Bien':q>=.2?'Juste':'Mauvais contact';
-    const label={serve:'Service',bump:'Manchette',set:'Passe',spike:'Smash'}[kind];
+    const label={serve:'Service',bump:over?'Touche haute':'Manchette',set:'Passe',spike:'Smash',dump:'Passeur'}[kind];
     if(recep){
       const t=recep.tgt,over=Math.sign(t.x)!==-1,d=Math.hypot(t.x+1.4,t.z-0.6);
       const grade=over?'Passée à l\'adversaire':d<=0.8?'Parfaite':d<=1.8?'Positive':d<=3?'Moyenne':'Négative';
@@ -803,12 +806,17 @@ function contacts(){
     const hd=hdist(pl.pos,b.p),head=new V3(pl.pos.x,2.2,pl.pos.z);
     if(pl.dive){
       if(pl.dive.t<0.6&&!pl.dive.hit&&hd<=2.0&&b.p.y<1.5&&b.p.y>0.05){pl.dive.hit=true;contact(pl,'bump',clamp(1-hd/2,0,1)*0.55+0.2);}
-    }else if(buffered&&S.pressKey==='A'&&hd<=1.5&&b.p.y<2.1&&b.p.y>0.15){
-      const q=clamp(1-hd/1.5,0,1)*0.8+0.2*clamp(1-Math.abs(b.p.y-0.9)/1.6,0,1);
-      S.pressT=-9;contact(pl,'bump',q);
-    }else if(buffered&&S.pressKey==='Z'&&b.p.distanceTo(head)<=1.3&&b.p.y>1.5){
+    }else if(buffered&&S.pressKey==='Z'&&P.touch===2&&b.p.distanceTo(head)<=1.3&&b.p.y>1.5){
+      // deuxième main : le passeur renvoie directement chez l'adversaire
+      S.pressT=-9;contact(pl,'dump',clamp(1-b.p.distanceTo(head)/1.3,0,1));
+    }else if(buffered&&S.pressKey==='A'&&b.p.y>1.5&&b.p.distanceTo(head)<=1.3){
+      // ballon haut : touche haute
       const q=clamp(1-b.p.distanceTo(head)/1.3,0,1);S.pressT=-9;
       if(P.touch===2)contact(pl,'set',q);else contact(pl,'bump',q,true);
+    }else if(buffered&&S.pressKey==='A'&&hd<=1.5&&b.p.y<=1.5&&b.p.y>0.15){
+      // ballon bas : manchette
+      const q=clamp(1-hd/1.5,0,1)*0.8+0.2*clamp(1-Math.abs(b.p.y-0.9)/1.6,0,1);
+      S.pressT=-9;contact(pl,'bump',q);
     }else if(b.p.y<1.0&&b.v.y<0&&!P.lost&&P.kind==='set'){P.lost=true;flash('Trop tard','#f3efe3');}
   }else{
     // E (2e appui) = smash, Z en l'air = balle placée (↓ = feinte)
@@ -1043,6 +1051,7 @@ function act(k){
   }
   if(k==='Z'&&P&&P.kind==='spike'&&P.player.jumpT>=0){S.hitReq='Z';return;}
   if(k==='A'&&S.pro&&oppBall()&&!S.hb){splitStep();return;}
+  if(k==='Z'&&!(P&&P.touch===2))return;
   if((k==='A'||k==='Z')&&P){
     if(P.kind==='spike'&&P.player.jumpT<0&&!P.player.approach){P.kind='bump';P.h=0.9;setCall('bump',3);}
     S.pressT=S.t;S.pressKey=k;if(k==='A'){S.holding=true;S.downT=S.t;}
@@ -1089,8 +1098,8 @@ function setCall(kind,touch){
   if(!kind){setCallRaw('','');return;}
   if(kind==='bump'){
     const k=touch===1?(S.lastKind==='serve'?'RÉCEPTION':'DÉFENSE'):touch===3?'RENVOIE':'RATTRAPE';
-    setCallRaw(k,touch===1?'A manchette · Z touche haute · ↑ courte · ↓ longue · ←→ le long du filet':'A manchette (maintenir = plongeon) · Z touche haute');
-  }else if(kind==='set')setCallRaw('PASSE','Z au contact · ← gauche · → droite · ↑ centre rapide · ↓ pipe · diagonale avant = tendue');
+    setCallRaw(k,touch===1?'A au contact (haut = touche haute, bas = manchette) · ↑ courte · ↓ longue · ←→ le long du filet':'A au contact · maintenir A = plongeon');
+  }else if(kind==='set')setCallRaw('PASSE','A au contact · ← gauche · → droite · ↑ centre rapide · ↓ pipe · diagonale avant = tendue · Z = deuxième main');
   else setCallRaw('ATTAQUE','E '+(S.pro?'élan':'saut')+', puis E pour frapper · Z en l\'air = placée (↓ feinte) · ←→ viser · ↑ fond');
 }
 function updateScore(){
@@ -1098,7 +1107,7 @@ function updateScore(){
   $('t0').classList.toggle('serving',S.server===0);$('t1').classList.toggle('serving',S.server===1);
 }
 function updateHud(){
-  const P=humanPlan(),on={R:(S.phase==='serve'||S.phase==='toss')&&S.server===0,A:!!P&&P.kind!=='spike'||(S.pro&&oppBall()),Z:!!P,E:(P&&P.kind==='spike')||!!(S.hb&&S.hb.active)};
+  const P=humanPlan(),on={R:(S.phase==='serve'||S.phase==='toss')&&S.server===0,A:!!P&&P.kind!=='spike'||(S.pro&&oppBall()),Z:!!P&&(P.touch===2||(P.kind==='spike'&&P.player.jumpT>=0)),E:(P&&P.kind==='spike')||!!(S.hb&&S.hb.active)};
   document.querySelectorAll('#btns button').forEach(bt=>bt.classList.toggle('on',!!on[bt.dataset.k]));
   const tEl=$('touches');
   if(S.phase==='play'&&S.lastTeam>=0&&S.lastKind!=='serve'){

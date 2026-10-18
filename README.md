@@ -19,8 +19,8 @@ puis ouvrir http://localhost:8000.
 | Touche | Action |
 |---|---|
 | Flèches | Direction (déplacement, visée, choix de passe/réception) |
-| A | Manchette (maintenir = plongeon ; en aide pro, pas d'appel avant la frappe adverse) |
-| Z | Touche haute : passe, réception haute ; en l'air = balle placée (↓ = feinte) |
+| A | Toucher le ballon : touche haute si le ballon est haut, manchette s'il est bas. Maintenir = plongeon ; en aide pro, pas d'appel avant la frappe adverse |
+| Z | Deuxième main du passeur (renvoi direct, ↑ pour l'appuyer au fond) ; en l'air = balle placée (↓ = feinte) |
 | E | Saut (ou course d'élan en aide pro), puis 2e appui = frappe ; saut au contre |
 | R | Service : lancer, puis frapper au sommet |
 | C / V | Changer de vue / afficher le cercle de chute |
