@@ -42,7 +42,9 @@ puis ouvrir http://localhost:8000.
 
 ## Crédits et licences
 
-- Corps, peaux, cheveux, sourcils, cils, yeux et chaussures : [MakeHuman](http://www.makehumancommunity.org) / MPFB2,
+- Joueur actuel : généré par IA (TRELLIS.2, Microsoft, licence MIT) à partir d'une image, puis riggé et animé dans Blender (`tools/scan_athlete.py`).
+- Ancien joueur (MakeHuman) : corps, peaux, cheveux, sourcils, cils, yeux et chaussures : [MakeHuman](http://www.makehumancommunity.org) / MPFB2,
   packs « system assets », « skins02 », « hair01 », « eyebrows01 », tous sous licence CC0.
-- Animations d'attente, de plongeon et de réaction : capture de mouvement [Mixamo](https://www.mixamo.com) (Adobe), transférée sur le squelette du joueur et intégrée au modèle. Les fichiers Mixamo bruts ne sont pas redistribués ici.
+- Déplacement latéral et saut au contre : générés avec Cinevva Prompt Animations.
+- Animations d'attente, de course, de plongeon et de réaction : capture de mouvement [Mixamo](https://www.mixamo.com) (Adobe), transférée sur le squelette du joueur et intégrée au modèle. Les fichiers Mixamo bruts ne sont pas redistribués ici.
 - Moteur 3D : [three.js](https://threejs.org) (MIT), chargé depuis jsDelivr.

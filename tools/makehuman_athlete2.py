@@ -150,6 +150,11 @@ for sd, SD in (('l', 'Left'), ('r', 'Right')):
     for f_, F in (('thumb', 'Thumb'), ('index', 'Index'), ('middle', 'Middle'), ('ring', 'Ring'), ('pinky', 'Pinky')):
         for i in (1, 2, 3): MAP[f'{f_}_0{i}_{sd}'] = f'{SD}Hand{F}{i}'
 print('SIDE', 'thigh_l x=', round(B['thigh_l'][0].x, 3))
+# squelettes sources : Mixamo (FBX) et Cinevva (BVH)
+REN_BVH = {'Spine': 'Spine1', 'Spine1': 'Spine2', 'Spine2': 'Chest', 'Neck': 'Neck1', 'LeftUpLeg': 'LeftLeg', 'LeftLeg': 'LeftShin', 'RightUpLeg': 'RightLeg', 'RightLeg': 'RightShin'}
+def srcmap(kind):
+    if kind == 'fbx': return {t: 'mixamorig:' + n for t, n in MAP.items()}, {k: 'mixamorig:' + k for k in ('Hips', 'LeftUpLeg', 'LeftLeg', 'LeftFoot')}
+    return {t: REN_BVH.get(n, n) for t, n in MAP.items()}, {k: REN_BVH.get(k, k) for k in ('Hips', 'LeftUpLeg', 'LeftLeg', 'LeftFoot')}
 T = rig; TWq = T.matrix_world.to_quaternion(); tb = T.data.bones
 depth = lambda b: 0 if not b.parent else 1 + depth(b.parent)
 order = sorted([b.name for b in tb], key=lambda n: depth(tb[n]))
@@ -158,12 +163,15 @@ restW = {n: TWq @ restA[n] for n in restA}
 legT = (B['thigh_l'][0] - B['calf_l'][0]).length + (B['calf_l'][0] - B['foot_l'][0]).length
 for pb in T.pose.bones: pb.rotation_mode = 'QUATERNION'
 T.animation_data_create()
-CLIPS = [('idle', 'idle.fbx', 1), ('diveL', 'dive.fbx', 1), ('diveR', 'dive2.fbx', 1), ('miss', 'miss.fbx', 1), ('jog', 'jog.fbx', 1)]
+CLIPS = [('idle', 'idle.fbx', 1), ('diveL', 'dive.fbx', 1), ('diveR', 'dive2.fbx', 1), ('miss', 'miss.fbx', 1), ('jog', 'jog.fbx', 1), ('shuffleL', 'src_shuffle.bvh', 1), ('block', 'src_block.bvh', 1)]
 # jog : un cycle de foulée (images 47→72) et cap figé (le clip d'origine tourne en rond)
-CLIP_OPT = {'jog': {'range': (47, 72), 'unyaw': True}}
+CLIP_OPT = {'jog': {'range': (47, 72), 'unyaw': True}, 'shuffleL': {'range': (40, 63)}, 'block': {'range': (25, 72)}}
 for cname, fname, step in CLIPS:
     before = set(bpy.data.objects)
-    bpy.ops.import_scene.fbx(filepath=f'{MX}/{fname}')
+    kind = 'bvh' if fname.endswith('.bvh') else 'fbx'
+    if kind == 'fbx': bpy.ops.import_scene.fbx(filepath=f'{MX}/{fname}')
+    else: bpy.ops.import_anim.bvh(filepath=f'{MX}/{fname}', global_scale=0.01)
+    SMAP, SK = srcmap(kind)
     new = [o for o in bpy.data.objects if o not in before]
     src = [o for o in new if o.type == 'ARMATURE'][0]; SW = src.matrix_world; sb = src.data.bones
     f0, f1 = map(int, src.animation_data.action.frame_range)
@@ -171,29 +179,29 @@ for cname, fname, step in CLIPS:
     if 'range' in opt: f0, f1 = opt['range']
     yaw0 = None
     if opt.get('unyaw'):  # cap de référence = celui de la première image du fichier (face avant)
-        bpy.context.scene.frame_set(1); hq = (SW @ src.pose.bones['mixamorig:Hips'].matrix).to_quaternion(); fw = hq @ Vector((0, 0, 1)); yaw0 = math.atan2(fw.x, fw.y)
+        bpy.context.scene.frame_set(1); hq = (SW @ src.pose.bones[SK['Hips']].matrix).to_quaternion(); fw = hq @ Vector((0, 0, 1)); yaw0 = math.atan2(fw.x, fw.y)
     align = {}
     for t, sname in MAP.items():
-        if t not in tb or 'mixamorig:' + sname not in sb: continue
-        qs = (SW @ sb['mixamorig:' + sname].matrix_local).to_quaternion()
+        if t not in tb or SMAP[t] not in sb: continue
+        qs = (SW @ sb[SMAP[t]].matrix_local).to_quaternion()
         ds = qs @ Vector((0, 1, 0)); dt_ = restW[t] @ Vector((0, 1, 0))
         align[t] = (qs.inverted(), dt_.rotation_difference(ds))
-    hipRest = (SW @ sb['mixamorig:Hips'].matrix_local).translation
-    legS = ((SW @ sb['mixamorig:LeftUpLeg'].matrix_local).translation - (SW @ sb['mixamorig:LeftLeg'].matrix_local).translation).length + \
-           ((SW @ sb['mixamorig:LeftLeg'].matrix_local).translation - (SW @ sb['mixamorig:LeftFoot'].matrix_local).translation).length
+    hipRest = (SW @ sb[SK['Hips']].matrix_local).translation
+    legS = ((SW @ sb[SK['LeftUpLeg']].matrix_local).translation - (SW @ sb[SK['LeftLeg']].matrix_local).translation).length + \
+           ((SW @ sb[SK['LeftLeg']].matrix_local).translation - (SW @ sb[SK['LeftFoot']].matrix_local).translation).length
     act = bpy.data.actions.new(cname); act.use_fake_user = True; T.animation_data.action = act
     for f in range(f0, f1 + 1, step):
         bpy.context.scene.frame_set(f)
         poseA = {}; Rfix = Quaternion()
         if opt.get('unyaw'):
-            hq = (SW @ src.pose.bones['mixamorig:Hips'].matrix).to_quaternion(); fw = hq @ Vector((0, 0, 1)); yw = math.atan2(fw.x, fw.y)
+            hq = (SW @ src.pose.bones[SK['Hips']].matrix).to_quaternion(); fw = hq @ Vector((0, 0, 1)); yw = math.atan2(fw.x, fw.y)
             if yaw0 is None: yaw0 = yw
             Rfix = Quaternion((0, 0, 1), yw - yaw0)
         kf = f - f0 + 1
         for n in order:
             b = tb[n]; par = b.parent.name if b.parent else None
             if n in align:
-                qSW = Rfix @ (SW @ src.pose.bones['mixamorig:' + MAP[n]].matrix).to_quaternion()
+                qSW = Rfix @ (SW @ src.pose.bones[SMAP[n]].matrix).to_quaternion()
                 si, qa = align[n]
                 qA = TWq.inverted() @ (qSW @ si @ qa @ restW[n])
             else:
@@ -201,7 +209,7 @@ for cname, fname, step in CLIPS:
             poseA[n] = qA
             basis = ((restA[par].inverted() @ restA[n]).inverted() @ poseA[par].inverted() @ qA) if par else (restA[n].inverted() @ qA)
             pb = T.pose.bones[n]; pb.rotation_quaternion = basis; pb.keyframe_insert('rotation_quaternion', frame=kf)
-        hipW = (SW @ src.pose.bones['mixamorig:Hips'].matrix).translation
+        hipW = (SW @ src.pose.bones[SK['Hips']].matrix).translation
         dz = (hipW.z - hipRest.z) * legT / legS
         off = TWq.inverted() @ Vector((0, 0, dz))
         pp = T.pose.bones['pelvis']; pp.location = restA['pelvis'].inverted() @ off; pp.keyframe_insert('location', frame=kf)

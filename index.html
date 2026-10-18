@@ -573,7 +573,7 @@ function analyzeAthlete(scene,anims){
   }
   // clips de capture de mouvement (Mixamo, transférés dans Blender) : un interpolant par os
   const clips={};
-  (anims||[]).forEach(c=>{clips[c.name]={dur:c.duration,tracks:c.tracks.map(t=>{const [bone,prop]=t.name.split('.');
+  (anims||[]).forEach(c=>{clips[c.name]={dur:c.duration,noPos:c.name==='block'||c.name==='shuffleL',tracks:c.tracks.map(t=>{const [bone,prop]=t.name.split('.');
     return(prop==='quaternion'||(prop==='position'&&bone==='pelvis'))&&bones[bone]?{bone,q:prop==='quaternion',it:t.createInterpolant()}:null;}).filter(Boolean)};});
   return{scene,info,meta,clips,order:Object.keys(bones).sort((a,b)=>depth(bones[a])-depth(bones[b]))};
 }
@@ -593,8 +593,9 @@ function makeSkinned(o){
   model.traverse(x=>{
     if(x.isBone)bones[x.name]=x;
     if(x.isMesh){x.castShadow=true;x.receiveShadow=true;x.frustumCulled=false;const nm=x.material.name;let m=x.material;
-      if(nm==='jersey'||nm==='shorts'){m=m.clone();m.color.setHex(nm==='jersey'?o.jersey:o.shorts);}
-      else if(nm==='skin'&&o.skinTex){m=m.clone();m.map=o.skinTex;}
+      if(nm==='jersey'&&ATH.meta.kind==='scan'){m=m.clone();m.color.setHex(o.jersey);m.color.multiplyScalar(o.jersey===0xf3efe3?1.05:1.35);}
+      else if(nm==='jersey'||nm==='shorts'){m=m.clone();m.color.setHex(nm==='jersey'?o.jersey:o.shorts);}
+      else if(nm==='skin'&&o.skinTex&&ATH.meta.kind!=='scan'){m=m.clone();m.map=o.skinTex;}
       else if(nm==='brow'||nm==='lash'||nm.startsWith('hair_')){m.alphaTest=0.45;m.transparent=false;m.depthWrite=true;m.side=THREE.DoubleSide;if(nm!=='brow'&&nm!=='lash')x.castShadow=true;}
       x.material=toToon(m,!/^(brow|lash|eye)$/.test(nm));}
   });
@@ -624,7 +625,7 @@ function driveSkin(J,sk,p,pl){
   if(pl&&pl.clip&&pl.clipW>0.002){
     const C=ATH.clips[pl.clip];if(C){const w=pl.clipW;
       for(const tr of C.tracks){const v=tr.it.evaluate(pl.clipT),bn=sk.bones[tr.bone];
-        if(tr.q){_cq.fromArray(v);bn.quaternion.slerp(_cq,w);}else{_cv.fromArray(v);bn.position.lerp(_cv,w);}}}
+        if(tr.q){_cq.fromArray(v);bn.quaternion.slerp(_cq,w);}else if(!C.noPos){_cv.fromArray(v);bn.position.lerp(_cv,w);}}}
   }
 }
 const SKIN_TEX=['young_caucasian_male','young_african_male','young_asian_male','middleage_caucasian_male','toigo_light_skin_male_bronze','young_african_male'].map(n=>{
@@ -1384,10 +1385,15 @@ function animatePlayer(p,dt){
   if(mocap){
     let want=null,t=0,rate=7;
     if(p.dive){const dt_=p.dive.t,f=dt_<0.3?31+dt_/0.3*12:dt_<0.95?43+(dt_-0.95+0.65)/0.65*20:63+Math.min(1,(dt_-0.95)/0.75)*32;want=p.dive.side>0?'diveL':'diveR';t=f/30;rate=30;}
+    else if(p.blocking&&p.jumpT>=0&&ATH.clips.block){want='block';t=(13+20*Math.min(1,p.jumpT/TJUMP))/30;rate=25;}
     else if(p.sad>0){p.sad+=dt;want='miss';t=Math.min(88,41+p.sad*30)/30;rate=5;}
     else if(p.running&&ATH.clips.jog&&p.hopT<0&&p.jumpT<0&&!p.act){
       const sp=Math.hypot(p.vel.x,p.vel.z),fw=(p.vel.x*Math.sin(p.yaw)+p.vel.z*Math.cos(p.yaw))/Math.max(sp,1e-3);
       if(Math.abs(fw)>0.55){const D=ATH.clips.jog.dur;p.jogT=((p.jogT||0)+dt*clamp(sp/1.9,0.7,2.3)*Math.sign(fw)+D)%D;want='jog';t=p.jogT;rate=6*clamp((sp-0.7)/1.5,0.2,1);}
+    }
+    if(!want&&ATH.clips.shuffleL&&p.hopT<0&&p.jumpT<0&&!p.act&&!p.dive){
+      const sp=Math.hypot(p.vel.x,p.vel.z),lat=p.vel.x*Math.cos(p.yaw)-p.vel.z*Math.sin(p.yaw);
+      if(sp>0.6&&Math.abs(lat)>sp*0.6){const D=ATH.clips.shuffleL.dur;p.shufT=((p.shufT||0)+dt*clamp(sp/1.6,0.7,2)*Math.sign(lat)+D)%D;want='shuffleL';t=p.shufT;rate=7;}
     }
     if(!want&&p.ready&&Math.hypot(p.vel.x,p.vel.z)<0.6&&p.hopT<0&&p.jumpT<0){p.idleT=((p.idleT||Math.random()*4)+dt)%4.5;want='idle';t=p.idleT+0.05;}
     if(want&&p.clip!==want&&p.clipW>0.05&&rate<20){p.clipW=Math.max(0,p.clipW-dt*10);}
