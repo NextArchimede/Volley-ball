@@ -1,0 +1,265 @@
+<title>Vestiaire Side Out</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout : scène 3D en haut (le joueur), commandes d'animation dessous. Thème sombre unique, celui du jeu. */
+:root{
+  --ink:#0a1520;
+  --panel:#112334;
+  --rule:rgba(243,239,227,.14);
+  --chalk:#f3efe3;
+  --muted:#93a8ba;
+  --ball:#f2c230;
+  --disp:"Saira Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+body{background:var(--ink);color:var(--chalk);font-family:var(--body);font-size:15px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:920px;margin:0 auto;padding-block:18px 36px;display:grid;gap:14px}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ball);font-weight:600}
+h1{font-family:var(--disp);font-weight:800;font-size:clamp(38px,9vw,56px);line-height:.9;margin:4px 0 6px;letter-spacing:.02em}
+.lede{margin:0;opacity:.88;max-width:62ch}
+.stage{position:relative;height:min(62vh,560px);min-height:320px;background:var(--panel);touch-action:none;cursor:grab}
+.stage:active{cursor:grabbing}
+.stage canvas{width:100%;height:100%;display:block}
+.tip{position:absolute;left:10px;bottom:8px;font-size:12px;color:var(--muted);pointer-events:none}
+#now{position:absolute;right:10px;top:8px;font-family:var(--disp);font-weight:800;font-size:22px;letter-spacing:.06em;text-transform:uppercase;pointer-events:none}
+.label{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--disp);font-weight:600;font-size:16px;letter-spacing:.06em;text-transform:uppercase;background:transparent;color:var(--chalk);border:1.5px solid var(--rule);padding:6px 14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ball);border-color:var(--ball);color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;font-size:14px}
+.row label{display:inline-flex;gap:7px;align-items:center;cursor:pointer}
+.note{font-size:14px;color:var(--muted);border-top:1px solid var(--rule);padding-top:12px;max-width:68ch;margin:0}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Side Out · les joueurs</div>
+    <h1>Vestiaire</h1>
+    <p class="lede">Les nouveaux joueurs : corps articulé, maillot numéroté, genouillères, et une animation par geste. Regarde chaque posture comme tu la corrigerais à l'entraînement.</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="c"></canvas>
+    <div id="now">Attente</div>
+    <div class="tip">Glisse pour tourner autour</div>
+  </div>
+
+  <div class="label">Geste</div>
+  <div class="chips" id="anims" role="group" aria-label="Geste"></div>
+
+  <div class="row">
+    <span class="chips" role="group" aria-label="Affichage">
+      <button class="chip" type="button" id="solo" aria-pressed="true">Solo</button>
+      <button class="chip" type="button" id="team" aria-pressed="false">Équipe</button>
+    </span>
+    <label><input type="checkbox" id="slow"> Ralenti ×0,25</label>
+    <label><input type="checkbox" id="spin"> Rotation auto</label>
+  </div>
+
+  <p class="note">En vue équipe, le joueur en maillot blanc est le libéro. Pour chaque geste, dis-moi ce qui cloche : appuis, angle du buste, plan de frappe, position des bras, timing.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),lerp=(a,b,t)=>a+(b-a)*t;
+
+/* ---------- Scène ---------- */
+const canvas=$('c'),stage=$('stage');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+THREE.ColorManagement.legacyMode=false;renderer.outputEncoding=THREE.sRGBEncoding;
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0e1f2e);scene.fog=new THREE.Fog(0x0e1f2e,14,34);
+const cam=new THREE.PerspectiveCamera(38,1,0.1,100);
+scene.add(new THREE.HemisphereLight(0xdfe9ff,0x22303c,0.75));
+const key=new THREE.DirectionalLight(0xffffff,1.6);key.position.set(4,9,6);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-7,right:7,top:7,bottom:-7,near:1,far:30});key.shadow.bias=-0.0004;scene.add(key);
+const rim=new THREE.DirectionalLight(0x9fc3ff,0.6);rim.position.set(-5,4,-6);scene.add(rim);
+const floorM=new THREE.MeshStandardMaterial({color:0x1d6a86,roughness:.85});
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(60,60),floorM);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+const court=new THREE.Mesh(new THREE.PlaneGeometry(18,9),new THREE.MeshStandardMaterial({color:0xd8672e,roughness:.7}));
+court.rotation.x=-Math.PI/2;court.position.set(0,0.002,-1.5);court.receiveShadow=true;scene.add(court);
+const lineM=new THREE.MeshBasicMaterial({color:0xf3efe3});
+[[0,3,18,.06],[-4.5+.03,-1.5,.06,9]].forEach(([x,z,w,h])=>{const l=new THREE.Mesh(new THREE.PlaneGeometry(w,h),lineM);l.rotation.x=-Math.PI/2;l.position.set(x,.004,z);scene.add(l);});
+
+/* ---------- Joueur articulé ---------- */
+const M=(c,r=.75)=>new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:0});
+function part(geo,mat,y=0){const m=new THREE.Mesh(geo,mat);m.position.y=y;m.castShadow=true;m.receiveShadow=true;return m;}
+// Membre organique : profil de rayons du haut vers le bas, bouts arrondis
+function limb(L,rs,seg=18){
+  const n=rs.length,pts=[],r0=rs[0],r1=rs[n-1];
+  for(let i=0;i<=5;i++){const a=Math.PI/2*(1-i/5);pts.push(new THREE.Vector2(r0*Math.cos(a)+1e-4,r0*Math.sin(a)*0.65));}
+  for(let i=1;i<n-1;i++)pts.push(new THREE.Vector2(rs[i],-L*i/(n-1)));
+  for(let i=0;i<=5;i++){const a=Math.PI/2*(i/5);pts.push(new THREE.Vector2(r1*Math.cos(a)+1e-4,-L-r1*Math.sin(a)*0.65));}
+  return new THREE.LatheGeometry(pts.reverse(),seg);
+}
+function shell(prof,seg=24){return new THREE.LatheGeometry(prof.map(([r,y])=>new THREE.Vector2(r+1e-4,y)),seg);}
+function numberTex(n,fg){
+  const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');
+  x.fillStyle=fg;x.font='800 104px "Saira Condensed","Arial Narrow",sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(n,64,70);
+  const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;
+}
+function makeAthlete(o){
+  const jersey=M(o.jersey,.6),shorts=M(o.shorts,.7),skin=M(o.skin,.55),hair=M(o.hair,.9),white=M(0xf2f2f0,.5),pad=M(0x15171c,.8),sole=M(o.sole,.6);
+  const root=new THREE.Group(),body=new THREE.Group();root.add(body);body.scale.setScalar(o.scale);
+  const J={root,body};
+  const hips=new THREE.Group();body.add(hips);J.hips=hips;
+  const pelvis=part(shell([[0,-.13],[.13,-.125],[.158,-.09],[.168,0],[.16,.08],[.15,.11],[0,.11]]),shorts);pelvis.scale.z=0.74;hips.add(pelvis);
+  const spine=new THREE.Group();spine.position.y=0.08;hips.add(spine);J.spine=spine;
+  const waist=part(shell([[0,-.02],[.145,-.02],[.14,.06],[.148,.16],[.155,.22],[0,.22]]),jersey);waist.scale.set(1.08,1,0.7);spine.add(waist);
+  const chest=new THREE.Group();chest.position.y=0.17;spine.add(chest);J.chest=chest;
+  const torso=part(shell([[0,-.04],[.155,-.04],[.172,.06],[.19,.16],[.186,.24],[.15,.29],[.08,.325],[0,.335]]),jersey);torso.scale.set(1.2,1,0.68);chest.add(torso);
+  const tex=numberTex(o.num,o.numColor),numM=new THREE.MeshBasicMaterial({map:tex,transparent:true});
+  const back=new THREE.Mesh(new THREE.PlaneGeometry(0.2,0.2),numM);back.position.set(0,0.14,-0.131);back.rotation.y=Math.PI;chest.add(back);
+  const front=new THREE.Mesh(new THREE.PlaneGeometry(0.1,0.1),numM);front.position.set(0,0.19,0.13);chest.add(front);
+  const neck=new THREE.Group();neck.position.y=0.31;chest.add(neck);
+  neck.add(part(new THREE.CylinderGeometry(0.046,0.056,0.12,14),skin,0.03));
+  const head=new THREE.Group();head.position.y=0.09;neck.add(head);J.head=head;
+  const skull=part(new THREE.SphereGeometry(0.102,24,18),skin,0.085);skull.scale.set(0.88,1.08,1);head.add(skull);
+  const jaw=part(new THREE.SphereGeometry(0.075,18,12),skin,0.035);jaw.scale.set(0.95,0.8,1.05);jaw.position.z=0.022;head.add(jaw);
+  const hairM=part(new THREE.SphereGeometry(0.108,24,12,0,Math.PI*2,0,Math.PI*0.5),hair,0.1);hairM.scale.set(0.92,1.02,1.04);hairM.position.z=-0.01;head.add(hairM);
+  const nose=part(new THREE.SphereGeometry(0.018,8,6),skin,0.07);nose.position.z=0.1;head.add(nose);
+  [1,-1].forEach(x=>{const e=part(new THREE.SphereGeometry(0.024,8,8),skin,0.08);e.position.x=x*0.09;e.scale.set(0.45,1,0.8);head.add(e);});
+  [1,-1].forEach(side=>{
+    const S=side>0?'L':'R';
+    const sh=new THREE.Group();sh.position.set(side*0.2,0.235,0);chest.add(sh);J['sh'+S]=sh;
+    sh.add(part(new THREE.SphereGeometry(0.074,16,12),jersey,0.005));
+    sh.add(part(limb(0.1,[.074,.073,.07]),jersey));
+    sh.add(part(limb(0.28,[.06,.061,.057,.05,.045,.042]),skin));
+    const el=new THREE.Group();el.position.y=-0.3;sh.add(el);J['el'+S]=el;
+    el.add(part(limb(0.24,[.043,.048,.046,.04,.034,.031]),skin));
+    const hand=part(new THREE.SphereGeometry(0.046,14,10),skin,-0.29);hand.scale.set(0.72,1.3,0.5);el.add(hand);
+    const hp=new THREE.Group();hp.position.set(side*0.088,-0.03,0);hips.add(hp);J['hp'+S]=hp;
+    hp.add(part(limb(0.17,[.104,.104,.1]),shorts));
+    hp.add(part(limb(0.42,[.092,.096,.09,.08,.07,.062]),skin));
+    const kn=new THREE.Group();kn.position.y=-0.44;hp.add(kn);J['kn'+S]=kn;
+    const kp=part(new THREE.CylinderGeometry(0.076,0.072,0.13,16),pad,-0.025);kp.scale.z=1.1;kn.add(kp);
+    kn.add(part(limb(0.38,[.058,.07,.071,.06,.047,.04]),skin));
+    kn.add(part(new THREE.CylinderGeometry(0.05,0.045,0.14,14),white,-0.34));
+    const an=new THREE.Group();an.position.y=-0.42;kn.add(an);J['an'+S]=an;
+    const shoe=part(new THREE.SphereGeometry(0.1,18,10),white,-0.04);shoe.scale.set(0.55,0.42,1.38);shoe.position.z=0.055;an.add(shoe);
+    an.add(part(new THREE.BoxGeometry(0.1,0.022,0.26),sole,-0.075).translateZ(0.055));
+  });
+  return J;
+}
+
+/* ---------- Poses ---------- */
+const DEF={lean:.05,chest:0,twist:0,head:0,sLf:.05,sLa:.1,eL:.25,sRf:.05,sRa:.1,eR:.25,hLf:0,hLa:.05,kL:.06,hRf:0,hRa:.05,kR:.06,air:0,toe:0,z:0};
+const P=o=>Object.assign({},DEF,o);
+const READY=P({lean:.62,head:-.55,sLf:.75,sRf:.75,sLa:.2,sRa:.2,eL:.95,eR:.95,hLf:.8,hRf:.8,hLa:.16,hRa:.16,kL:1.35,kR:1.35});
+const R=o=>Object.assign({},READY,o);
+const KEYS=Object.keys(DEF);
+function keyframes(dur,keys){return{dur,sample(t){
+  let i=0;while(i<keys.length-2&&t>=keys[i+1][0])i++;
+  const [t0,a]=keys[i],[t1,b]=keys[i+1];let k=clamp((t-t0)/((t1-t0)||1),0,1);k=k*k*(3-2*k);
+  const o={};for(const n of KEYS)o[n]=lerp(a[n],b[n],k);return o;
+}};}
+const ANIMS={
+  attente:{name:'Attente',...keyframes(2.4,[[0,READY],[0.9,R({lean:.56})],[1.08,R({air:.07,hLf:.55,hRf:.55,kL:.85,kR:.85,hLa:.2,hRa:.2})],[1.24,R({hLa:.2,hRa:.2,kL:1.45,kR:1.45})],[1.5,READY],[2.4,READY]])},
+  course:{name:'Course',dur:0.62,sample(t){
+    const ph=t/0.62*Math.PI*2,s=Math.sin(ph);
+    const leg=p=>({f:.15+.8*Math.sin(p),k:.35+1.15*Math.max(0,Math.sin(p-1.4))});
+    const L=leg(ph),Rr=leg(ph+Math.PI);
+    return P({lean:.32,head:-.3,hLf:L.f,kL:L.k,hRf:Rr.f,kR:Rr.k,sLf:-.7*s,sRf:.7*s,eL:1.45,eR:1.45,sLa:.12,sRa:.12,air:.05*Math.abs(Math.sin(ph))});
+  }},
+  manchette:{name:'Manchette',...keyframes(1.9,[[0,READY],[.4,R({z:.25,kL:1.45,kR:1.45})],
+    [.72,R({z:.35,lean:.55,head:-.35,sLf:.95,sRf:.95,sLa:-.34,sRa:-.34,eL:.04,eR:.04,hLf:.9,hRf:.9,kL:1.5,kR:1.5})],
+    [.92,R({z:.4,lean:.42,head:-.3,sLf:.78,sRf:.78,sLa:-.34,sRa:-.34,eL:.04,eR:.04,hLf:.55,hRf:.55,kL:.9,kR:.9})],
+    [1.3,R({z:.4,lean:.42,head:-.3,sLf:.72,sRf:.72,sLa:-.34,sRa:-.34,eL:.04,eR:.04,hLf:.5,hRf:.5,kL:.85,kR:.85})],
+    [1.9,R({z:0})]])},
+  defense:{name:'Défense basse',...keyframes(1.8,[[0,READY],
+    [.38,P({z:.75,lean:.95,head:-.75,sLf:.75,sRf:.75,sLa:-.34,sRa:-.34,eL:.04,eR:.04,hLf:1.4,kL:1.7,hLa:.12,hRf:-.55,kR:.75,hRa:.1})],
+    [.95,P({z:.75,lean:.95,head:-.75,sLf:.7,sRf:.7,sLa:-.34,sRa:-.34,eL:.04,eR:.04,hLf:1.4,kL:1.7,hLa:.12,hRf:-.55,kR:.75,hRa:.1})],
+    [1.8,R({z:0})]])},
+  passe:{name:'Passe',...keyframes(1.7,[[0,READY],
+    [.42,P({lean:.12,head:-.5,sLf:2.45,sRf:2.45,sLa:.42,sRa:.42,eL:1.55,eR:1.55,hLf:.5,hRf:.5,kL:.8,kR:.8,hLa:.1,hRa:.1})],
+    [.8,P({lean:.12,head:-.55,sLf:2.45,sRf:2.45,sLa:.42,sRa:.42,eL:1.55,eR:1.55,hLf:.55,hRf:.55,kL:.9,kR:.9,hLa:.1,hRa:.1})],
+    [1.0,P({lean:.0,head:-.65,sLf:2.95,sRf:2.95,sLa:.22,sRa:.22,eL:.15,eR:.15,hLf:.08,hRf:.08,kL:.12,kR:.12,toe:.3})],
+    [1.3,P({lean:.0,head:-.6,sLf:2.85,sRf:2.85,sLa:.22,sRa:.22,eL:.2,eR:.2})],
+    [1.7,READY]])},
+  smash:{name:'Smash',...keyframes(2.3,[
+    [0,P({z:-2.6,lean:.3,hLf:.3,kL:.5,hRf:.3,kR:.5})],
+    [.32,P({z:-2.0,lean:.35,hLf:.7,kL:.4,hRf:-.3,kR:.9,sLf:-.3,sRf:.3,eL:.6,eR:.6})],
+    [.58,P({z:-1.2,lean:.5,hLf:-.2,kL:.6,hRf:.95,kR:1.2,sLf:-1.0,sRf:-1.0,sLa:.25,sRa:.25,eL:.2,eR:.2,head:-.3})],
+    [.76,P({z:-.65,lean:.55,hLf:1.0,kL:1.6,hRf:.9,kR:1.5,sLf:-1.2,sRf:-1.2,sLa:.25,sRa:.25,eL:.15,eR:.15,head:-.4})],
+    [.94,P({z:-.45,air:.3,lean:.12,hLf:.05,kL:.08,hRf:.05,kR:.08,toe:.6,sLf:2.6,sRf:2.6,sLa:.2,sRa:.2,eL:.1,eR:.1,head:-.5})],
+    [1.16,P({z:-.25,air:.78,lean:-.05,chest:-.28,twist:-.5,hLf:.45,kL:.95,hRf:.3,kR:.8,toe:.4,sLf:2.75,sLa:.1,eL:.15,sRf:2.75,sRa:1.0,eR:2.15,head:-.5})],
+    [1.27,P({z:-.15,air:.74,lean:.12,chest:.2,twist:.35,hLf:.6,kL:.9,hRf:.45,kR:.8,toe:.3,sLf:.55,sLa:.2,eL:1.3,sRf:2.35,sRa:.25,eR:.02,head:-.35})],
+    [1.45,P({z:-.05,air:.4,lean:.4,chest:.25,twist:.25,hLf:.5,kL:.6,hRf:.5,kR:.6,toe:.2,sLf:.3,eL:1.0,sRf:.45,sRa:.1,eR:.3,head:-.2})],
+    [1.62,P({z:.1,lean:.5,hLf:.95,kL:1.5,hRf:.95,kR:1.5,hLa:.15,hRa:.15,sLf:.4,sRf:.5,eL:.7,eR:.6})],
+    [2.3,P({z:.1,lean:.3,hLf:.3,kL:.5,hRf:.3,kR:.5})]])},
+  service:{name:'Service flottant',...keyframes(2.1,[
+    [0,P({lean:.12,sLf:.95,eL:.65,sLa:-.1,sRf:.25,eR:.4,hLf:.25,kL:.15,hRf:-.15,kR:.2,head:-.2})],
+    [.5,P({lean:.05,head:-.6,sLf:2.85,sLa:-.05,eL:.05,sRf:2.45,sRa:.95,eR:2.05,twist:-.4,chest:-.12,hLf:.3,kL:.2,hRf:-.2,kR:.3})],
+    [.82,P({lean:.12,head:-.5,sLf:1.3,eL:.8,sRf:2.55,sRa:.2,eR:.02,twist:.2,chest:.05,hLf:.35,kL:.25,hRf:-.15,kR:.3})],
+    [1.3,P({lean:.12,head:-.4,sLf:1.0,eL:.8,sRf:2.5,sRa:.2,eR:.02,twist:.2,hLf:.35,kL:.25,hRf:-.15,kR:.3})],
+    [2.1,P({lean:.12,sLf:.95,eL:.65,sLa:-.1,sRf:.25,eR:.4,hLf:.25,kL:.15,hRf:-.15,kR:.2,head:-.2})]])}
+};
+
+function legH(f,k,a){return 0.03+0.44*Math.cos(f)*Math.cos(a)+0.42*Math.cos(f-k)*Math.cos(a)+0.085;}
+function apply(J,p,baseZ){
+  J.spine.rotation.x=p.lean*0.55;J.chest.rotation.set(p.lean*0.45+p.chest,p.twist,0);J.head.rotation.x=p.head;
+  J.shL.rotation.set(-p.sLf,0,p.sLa);J.elL.rotation.x=-p.eL;
+  J.shR.rotation.set(-p.sRf,0,-p.sRa);J.elR.rotation.x=-p.eR;
+  J.hpL.rotation.set(-p.hLf,0,p.hLa);J.knL.rotation.x=p.kL;
+  J.hpR.rotation.set(-p.hRf,0,-p.hRa);J.knR.rotation.x=p.kR;
+  const air=p.air>0.02;
+  J.anL.rotation.x=p.hLf-p.kL+(air?p.toe:0);J.anR.rotation.x=p.hRf-p.kR+(air?p.toe:0);
+  J.hips.position.y=Math.min(legH(p.hLf,p.kL,p.hLa),legH(p.hRf,p.kR,p.hRa))+p.air;
+  J.hips.position.z=0;J.root.position.z=baseZ+p.z;
+}
+
+/* ---------- Effectif ---------- */
+const BLUE=0x2f6fe0,NAVY=0x16233a;
+const ROSTER=[
+  {num:'7',scale:1.0,skin:0xe8bf9a,hair:0x3b2a1f,jersey:BLUE,shorts:NAVY,numColor:'#f3efe3',sole:BLUE},
+  {num:'12',scale:1.06,skin:0x8a5a3b,hair:0x15110e,jersey:BLUE,shorts:NAVY,numColor:'#f3efe3',sole:BLUE},
+  {num:'3',scale:1.02,skin:0xf1cfb0,hair:0xc9a15a,jersey:BLUE,shorts:NAVY,numColor:'#f3efe3',sole:BLUE},
+  {num:'1',scale:0.95,skin:0xd2a07a,hair:0x2a1d14,jersey:0xf3efe3,shorts:NAVY,numColor:'#2f6fe0',sole:0xf2c230},
+  {num:'9',scale:1.04,skin:0xb07850,hair:0x1a1a1a,jersey:BLUE,shorts:NAVY,numColor:'#f3efe3',sole:BLUE},
+  {num:'15',scale:1.0,skin:0xe2b48c,hair:0x6b4a2b,jersey:BLUE,shorts:NAVY,numColor:'#f3efe3',sole:BLUE}
+];
+const athletes=ROSTER.map((o,i)=>{const J=makeAthlete(o);scene.add(J.root);J.offset=i*0.21;J.baseX=(i-2.5)*1.25;return J;});
+let mode='solo',animK='attente',animT=0;
+
+const animsEl=$('anims');
+Object.entries(ANIMS).forEach(([k,a])=>{
+  const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=a.name;b.dataset.k=k;
+  b.setAttribute('aria-pressed',k===animK);
+  b.addEventListener('click',()=>{animK=k;animT=0;$('now').textContent=a.name;animsEl.querySelectorAll('.chip').forEach(x=>x.setAttribute('aria-pressed',x===b));});
+  animsEl.appendChild(b);
+});
+function setMode(m){mode=m;$('solo').setAttribute('aria-pressed',m==='solo');$('team').setAttribute('aria-pressed',m==='team');layout();}
+$('solo').addEventListener('click',()=>setMode('solo'));$('team').addEventListener('click',()=>setMode('team'));
+function layout(){athletes.forEach((J,i)=>{const show=mode==='team'||i===3;J.root.visible=show;J.root.position.x=mode==='team'?J.baseX:0;});}
+layout();
+
+/* ---------- Caméra orbitale ---------- */
+let yaw=0.7,pitch=0.22,drag=null;
+stage.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,yaw,pitch};try{stage.setPointerCapture(e.pointerId);}catch(_){}});
+stage.addEventListener('pointermove',e=>{if(!drag)return;yaw=drag.yaw-(e.clientX-drag.x)*0.008;pitch=clamp(drag.pitch+(e.clientY-drag.y)*0.005,-0.05,1.2);});
+const end=()=>{drag=null;};stage.addEventListener('pointerup',end);stage.addEventListener('pointercancel',end);
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+
+let last=performance.now();
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000);last=now;
+  const A=ANIMS[animK];animT+=dt*($('slow').checked?0.25:1);
+  if($('spin').checked&&!drag&&!reduce)yaw+=dt*0.35;
+  athletes.forEach(J=>{if(!J.root.visible)return;const t=((animT+(mode==='team'?J.offset:0))%A.dur);apply(J,A.sample(t),mode==='team'?0.6:0);});
+  const team=mode==='team',dist=team?(cam.aspect<0.8?13:9.5):(cam.aspect<0.8?4.6:3.8),ty=team?0.95:1.0,tz=animK==='smash'&&!team?-0.6:0;
+  cam.position.set(Math.sin(yaw)*Math.cos(pitch)*dist,ty+Math.sin(pitch)*dist,tz+Math.cos(yaw)*Math.cos(pitch)*dist);
+  cam.lookAt(0,ty,tz);
+  renderer.render(scene,cam);requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>

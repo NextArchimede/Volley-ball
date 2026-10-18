@@ -1,0 +1,315 @@
+<title>Labo ballon</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout : une colonne, vue de profil du terrain en tête, chiffres clés dessous, puis réglages. Thème sombre unique, celui du jeu. */
+:root{
+  --ink:#0a1520;
+  --panel:#112334;
+  --rule:rgba(243,239,227,.12);
+  --chalk:#f3efe3;
+  --muted:#93a8ba;
+  --court:#d8672e;
+  --free:#1d6a86;
+  --ball:#f2c230;
+  --ghost:#7f93a6;
+  --bad:#f08a80;
+  --disp:"Saira Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+body{background:var(--ink);color:var(--chalk);font-family:var(--body);font-size:15px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:920px;margin:0 auto;padding-block:20px 40px;display:grid;gap:18px}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ball);font-weight:600}
+h1{font-family:var(--disp);font-weight:800;font-size:clamp(40px,9vw,60px);line-height:.9;margin:4px 0 8px;letter-spacing:.02em;text-wrap:balance}
+.lede{margin:0;color:var(--chalk);opacity:.88;max-width:62ch}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--disp);font-weight:600;font-size:16px;letter-spacing:.06em;text-transform:uppercase;background:transparent;color:var(--chalk);border:1.5px solid var(--rule);padding:6px 14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ball);border-color:var(--ball);color:var(--ink)}
+.chip:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--chalk);outline-offset:2px}
+figure{margin:0;display:grid;gap:6px}
+canvas{width:100%;display:block;background:var(--panel)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:22px;height:0;border-top:3px solid var(--ball)}
+.sw.g{border-top:2px dashed var(--ghost)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ball)}
+.vlabel{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.reads{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--rule)}
+@media (min-width:640px){.reads{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.read{background:var(--ink);padding:10px 12px;min-width:0}
+.read .n{font-family:var(--disp);font-weight:800;font-size:30px;line-height:1.05;font-variant-numeric:tabular-nums}
+.read .n small{font-size:16px;font-weight:600;color:var(--muted);margin-left:3px}
+.read .l{font-size:12px;color:var(--muted);line-height:1.35}
+.read .d{font-size:12px;color:var(--ghost);font-variant-numeric:tabular-nums}
+.read.warn .n{color:var(--bad)}
+.ctrls{display:grid;gap:14px 28px}
+@media (min-width:640px){.ctrls{grid-template-columns:1fr 1fr}}
+.row{display:grid;gap:4px;min-width:0}
+.row .top{display:flex;justify-content:space-between;gap:10px;font-size:14px}
+.row .top output{font-weight:600;font-variant-numeric:tabular-nums}
+.row .ends{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--ball);margin:0}
+.toggles{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px;align-items:center}
+.toggles label{display:inline-flex;gap:7px;align-items:center;cursor:pointer}
+.seg{display:inline-flex;border:1.5px solid var(--rule)}
+.seg button{background:transparent;color:var(--chalk);border:0;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--chalk);color:var(--ink)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font-family:var(--disp);font-weight:800;font-size:17px;letter-spacing:.06em;text-transform:uppercase;background:var(--ball);color:var(--ink);border:0;padding:9px 18px;cursor:pointer}
+.btn.alt{background:transparent;color:var(--chalk);border:1.5px solid var(--rule)}
+#copied{font-size:13px;color:var(--muted)}
+#copyBox{width:100%;box-sizing:border-box;background:var(--panel);color:var(--chalk);border:1px solid var(--rule);font:13px/1.4 var(--body);padding:8px;min-height:70px}
+.note{font-size:13px;color:var(--muted);border-top:1px solid var(--rule);padding-top:12px;max-width:72ch}
+.note a{color:var(--chalk)}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Side Out · étape 1 : le ballon</div>
+    <h1>Labo ballon</h1>
+    <p class="lede">Règle chaque type de balle jusqu'à ce qu'elle ressemble à ce que tu vois sur le terrain. En pointillé, le ballon du prototype, sans air. En jaune, le nouveau moteur : résistance de l'air, effet et flottement.</p>
+  </header>
+
+  <div class="presets" id="presets" role="group" aria-label="Type de balle"></div>
+
+  <figure>
+    <div class="vlabel">Vue de profil</div>
+    <canvas id="side" aria-label="Trajectoire du ballon vue de profil"></canvas>
+    <div class="vlabel">Vue de dessus</div>
+    <canvas id="top" aria-label="Trajectoire du ballon vue de dessus"></canvas>
+    <div class="legend">
+      <span><i class="sw"></i>Avec air</span>
+      <span><i class="sw g"></i>Prototype actuel</span>
+      <span><i class="dot"></i>Un point toutes les 0,1 s</span>
+    </div>
+  </figure>
+
+  <div class="reads" id="reads"></div>
+
+  <div class="ctrls" id="ctrls"></div>
+
+  <div class="toggles">
+    <span>Filet <span class="seg" id="netSeg"><button type="button" data-h="2.43" aria-pressed="true">Hommes 2,43</button><button type="button" data-h="2.24" aria-pressed="false">Femmes 2,24</button></span></span>
+    <label><input type="checkbox" id="slow"> Ralenti ×0,25</label>
+    <label><input type="checkbox" id="ghostOn" checked> Montrer le prototype</label>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="copy" type="button">Copier mes réglages</button>
+    <button class="btn alt" id="reroll" type="button">Autre flottant</button>
+    <span id="copied" aria-live="polite"></span>
+  </div>
+  <textarea id="copyBox" readonly hidden></textarea>
+
+  <p class="note">Base physique : ballon de 0,27 kg et 21 cm. En soufflerie, la traînée d'un ballon de volley chute brutalement autour de 70 km/h (crise de traînée, Cd ≈ 0,15 au-delà, contre environ 0,48 en dessous). C'est dans cette zone que le flottant devient imprévisible. Repère pro : 88 km/h en moyenne pour le service smashé masculin. Sources : <a href="https://www.mdpi.com/2076-3417/10/9/3256" target="_blank" rel="noopener">Applied Sciences 2020</a>, <a href="https://ped.muni.cz/en/research/research-and-development/publications/2394657" target="_blank" rel="noopener">Masaryk University</a>.</p>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const G=9.81,RHO=1.2,D=0.21,RB=D/2,M=0.27,NU=1.5e-5,AREA=Math.PI*RB*RB;
+const CD_LO=0.48,CD_HI=0.15,RE_CR=2.8e5;
+const X0=-11,X1=11;
+
+const PRESETS={
+  flottant:{name:'Flottant',dir:1,v:60,ang:15,h:2.6,dist:10,spin:0,flt:1.8,info:'Service flottant'},
+  smashe:{name:'Smashé',dir:1,v:88,ang:2,h:3.3,dist:9,spin:7,flt:0,info:'Service smashé lifté'},
+  smash:{name:'Smash',dir:1,v:100,ang:-16,h:3.2,dist:1,spin:4,flt:0,info:'Attaque'},
+  feinte:{name:'Feinte',dir:1,v:14,ang:40,h:3.0,dist:0.8,spin:-1,flt:0,info:'Feinte'},
+  manchette:{name:'Manchette',dir:-1,v:32,ang:68,h:0.8,dist:6.5,spin:0,flt:0,info:'Réception vers le passeur'}
+};
+const CTRL=[
+  {k:'v',label:'Vitesse au contact',unit:'km/h',min:10,max:130,step:1,ends:['10','130']},
+  {k:'ang',label:'Angle de départ',unit:'°',min:-30,max:80,step:1,ends:['vers le bas','vers le haut']},
+  {k:'h',label:'Hauteur de frappe',unit:'m',min:0.3,max:3.6,step:0.05,ends:['0,3 m','3,6 m']},
+  {k:'dist',label:'Distance au filet',unit:'m',min:0.5,max:12,step:0.1,ends:['collé','derrière la ligne']},
+  {k:'spin',label:'Effet',unit:'tours/s',min:-10,max:10,step:0.5,ends:['coupé','lifté']},
+  {k:'flt',label:'Flottement',unit:'',min:0,max:3,step:0.1,ends:['stable','danse']}
+];
+let cur='flottant',S=Object.assign({},PRESETS.flottant),netH=2.43,seed=[1.1,2.3,0.4];
+
+/* ---------- Physique ---------- */
+function cd(v){const re=v*D/NU;return CD_HI+(CD_LO-CD_HI)/(1+Math.exp((re-RE_CR)/2.5e4));}
+function simulate(s,air){
+  const a=s.ang*Math.PI/180,v0=s.v/3.6;
+  let x=-s.dir*s.dist,y=s.h,z=0,vx=s.dir*v0*Math.cos(a),vy=v0*Math.sin(a),vz=0;
+  const dt=0.002,pts=[{t:0,x,y,z,v:v0}];let t=0,net=null,netHit=false,arrive=null,apex=y,acc=0;
+  while(t<7){
+    const v=Math.hypot(vx,vy,vz);let ax=0,ay=-G,az=0;
+    if(air&&v>0.1){
+      const k=0.5*RHO*cd(v)*AREA/M;ax-=k*v*vx;ay-=k*v*vy;az-=k*v*vz;
+      if(s.spin){
+        const sp=RB*2*Math.PI*Math.abs(s.spin)/v,cl=Math.min(0.35,0.45*sp),f=0.5*RHO*cl*AREA*v*v/M,sg=Math.sign(s.spin);
+        const vxy=Math.hypot(vx,vy);if(vxy>0.1){ax+=sg*f*s.dir*vy/vxy;ay+=sg*f*s.dir*(-vx)/vxy;}
+      }
+      if(s.flt>0){
+        const re=v*D/NU,w=Math.exp(-Math.pow((re-RE_CR)/6e4,2))*Math.max(0,1-Math.abs(s.spin));
+        const A=s.flt*w*4;
+        az+=A*(Math.sin(2*Math.PI*1.3*t+seed[0])+0.5*Math.sin(2*Math.PI*2.1*t+seed[1]));
+        ay+=A*0.5*Math.sin(2*Math.PI*1.7*t+seed[2]);
+      }
+    }
+    vx+=ax*dt;vy+=ay*dt;vz+=az*dt;
+    const px=x;x+=vx*dt;y+=vy*dt;z+=vz*dt;t+=dt;
+    if(y>apex)apex=y;
+    if(net===null&&Math.sign(px)!==Math.sign(x)){net={y,t};if(y<netH+RB){netHit=true;}}
+    if(arrive===null&&vy<0&&y<=1.0)arrive={t,v:Math.hypot(vx,vy,vz)};
+    acc+=dt;if(acc>=0.01-1e-9){acc=0;pts.push({t,x,y,z,v:Math.hypot(vx,vy,vz)});}
+    if(netHit){pts.push({t,x:0,y,z,v:0});break;}
+    if(y<=RB){pts.push({t,x,y:RB,z,v:Math.hypot(vx,vy,vz)});break;}
+  }
+  const end=pts[pts.length-1];
+  return{pts,net,netHit,arrive,apex,end,t};
+}
+
+/* ---------- Interface ---------- */
+const presetsEl=$('presets');
+Object.entries(PRESETS).forEach(([k,p])=>{
+  const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=p.name;b.dataset.k=k;
+  b.setAttribute('aria-pressed',k===cur);b.addEventListener('click',()=>loadPreset(k));presetsEl.appendChild(b);
+});
+const ctrlsEl=$('ctrls');
+CTRL.forEach(c=>{
+  const row=document.createElement('div');row.className='row';
+  row.innerHTML=`<div class="top"><label for="r_${c.k}">${c.label}</label><output id="o_${c.k}"></output></div>
+  <input type="range" id="r_${c.k}" min="${c.min}" max="${c.max}" step="${c.step}">
+  <div class="ends"><span>${c.ends[0]}</span><span>${c.ends[1]}</span></div>`;
+  ctrlsEl.appendChild(row);
+  row.querySelector('input').addEventListener('input',e=>{S[c.k]=parseFloat(e.target.value);syncOut();recompute();});
+});
+const fmt=(n,d=1)=>n.toLocaleString('fr-FR',{minimumFractionDigits:d,maximumFractionDigits:d});
+function syncOut(){
+  CTRL.forEach(c=>{
+    const v=S[c.k];$('r_'+c.k).value=v;
+    let txt=c.step<1?fmt(v,c.step<0.1?2:1):String(v);
+    if(c.k==='spin')txt=v===0?'aucun':(v>0?'lifté ':'coupé ')+fmt(Math.abs(v),1)+' tours/s';
+    else if(c.k==='flt')txt=v===0?'aucun':fmt(v,1);
+    else txt+=' '+c.unit;
+    $('o_'+c.k).textContent=txt;
+  });
+}
+function loadPreset(k){
+  cur=k;S=Object.assign({},PRESETS[k]);
+  presetsEl.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===k));
+  syncOut();recompute();anim=0;
+}
+$('netSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  netH=parseFloat(b.dataset.h);$('netSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));recompute();
+}));
+$('reroll').addEventListener('click',()=>{seed=[Math.random()*6.28,Math.random()*6.28,Math.random()*6.28];if(S.flt===0){S.flt=1.8;syncOut();}recompute();anim=0;});
+$('ghostOn').addEventListener('change',draw);
+
+/* ---------- Chiffres ---------- */
+let A,B;
+function recompute(){A=simulate(S,true);B=simulate(S,false);renderReads();draw();}
+function landTxt(r){
+  if(r.netHit)return{n:'Filet',l:'Le ballon ne passe pas',warn:true};
+  const x=r.end.x,side=Math.sign(x)===S.dir;
+  if(!side&&S.dir>0)return{n:'Ton camp',l:'Retombe côté frappeur',warn:true};
+  const inside=Math.abs(x)<=9&&Math.abs(r.end.z)<=4.5;
+  return{n:fmt(Math.abs(x),1),u:'m',l:(inside?'Dedans':'Dehors')+', distance au filet',warn:!inside};
+}
+function renderReads(){
+  const arr=A.arrive,arrB=B.arrive;
+  const netM=A.net&&!A.netHit?Math.round((A.net.y-netH)*100):null;
+  const lt=landTxt(A);
+  const items=[
+    {n:arr?fmt(arr.t,2):'—',u:'s',l:S.dir>0?'Temps pour réagir (ballon à 1 m)':'Temps de vol jusqu\'à 1 m',d:arrB?'prototype : '+fmt(arrB.t,2)+' s':''},
+    {n:arr?Math.round(arr.v*3.6):'—',u:'km/h',l:'Vitesse en arrivant à 1 m',d:'départ : '+Math.round(S.v)+' km/h'},
+    {n:netM===null?(A.netHit?'Filet':'—'):(netM>=0?'+':'')+netM,u:netM===null?'':'cm',l:'Marge au-dessus du filet',warn:A.netHit},
+    {n:lt.n,u:lt.u||'',l:lt.l,warn:lt.warn,d:'flèche max : '+fmt(A.apex,1)+' m'}
+  ];
+  $('reads').innerHTML=items.map(i=>`<div class="read${i.warn?' warn':''}"><div class="n">${i.n}${i.u?`<small>${i.u}</small>`:''}</div><div class="l">${i.l}</div>${i.d?`<div class="d">${i.d}</div>`:''}</div>`).join('');
+}
+
+/* ---------- Dessin ---------- */
+const cs=$('side'),ct=$('top');let W=0,dpr=1;
+function size(){
+  dpr=Math.min(window.devicePixelRatio||1,2);W=cs.clientWidth;
+  const hs=Math.round(Math.max(210,W*(W<640?0.62:0.44))),ht=Math.round(Math.max(120,W*0.3));
+  [[cs,hs],[ct,ht]].forEach(([c,h])=>{c.style.height=h+'px';c.width=Math.round(W*dpr);c.height=Math.round(h*dpr);});
+  draw();
+}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+function draw(){
+  if(!A||!W)return;
+  drawSide();drawTop();
+}
+function mapX(x){const p=14;return p+(x-X0)/(X1-X0)*(W-2*p);}
+function drawSide(){
+  const c=cs.getContext('2d'),H=cs.height/dpr;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+  const yMax=Math.min(9,Math.max(5,A.apex+0.8,B.apex+0.8)),pb=24,pt=10;
+  const Y=y=>H-pb-(y/yMax)*(H-pb-pt);
+  c.font='11px Barlow, system-ui, sans-serif';c.fillStyle=css('--muted');c.strokeStyle='rgba(243,239,227,.07)';c.lineWidth=1;
+  for(let h=1;h<yMax;h++){c.beginPath();c.moveTo(mapX(X0),Y(h));c.lineTo(mapX(X1),Y(h));c.stroke();c.fillText(h+' m',4,Y(h)-3);}
+  c.fillStyle=css('--free');c.fillRect(mapX(X0),Y(0),mapX(X1)-mapX(X0),5);
+  c.fillStyle=css('--court');c.fillRect(mapX(-9),Y(0),mapX(9)-mapX(-9),5);
+  c.fillStyle=css('--chalk');[-9,-3,0,3,9].forEach(x=>c.fillRect(mapX(x)-1,Y(0),2,5));
+  c.fillStyle=css('--muted');c.textAlign='center';
+  [-9,-6,-3,3,6,9].forEach(x=>c.fillText(Math.abs(x)+' m',mapX(x),H-6));c.textAlign='left';
+  // filet
+  c.fillStyle='rgba(243,239,227,.18)';c.fillRect(mapX(0)-2,Y(netH),4,Y(netH-1)-Y(netH));
+  c.fillStyle=css('--chalk');c.fillRect(mapX(0)-2,Y(netH)-1,4,3);
+  c.strokeStyle='rgba(243,239,227,.5)';c.beginPath();c.moveTo(mapX(0),Y(netH-1));c.lineTo(mapX(0),Y(0));c.stroke();
+  c.strokeStyle=css('--bad');c.lineWidth=2;c.beginPath();c.moveTo(mapX(0),Y(netH));c.lineTo(mapX(0),Y(netH+0.8));c.stroke();
+  // trajectoires
+  if($('ghostOn').checked)path(c,B.pts,p=>mapX(p.x),p=>Y(p.y),css('--ghost'),2,[6,5]);
+  path(c,A.pts,p=>mapX(p.x),p=>Y(p.y),css('--ball'),3,[]);
+  c.fillStyle=css('--ball');A.pts.forEach((p,i)=>{if(i%10===0){c.beginPath();c.arc(mapX(p.x),Y(p.y),2.4,0,7);c.fill();}});
+  // contact
+  const p0=A.pts[0];c.strokeStyle=css('--chalk');c.lineWidth=1.5;c.beginPath();c.arc(mapX(p0.x),Y(p0.y),6,0,7);c.stroke();
+  c.fillStyle=css('--chalk');c.textAlign=S.dir>0?'left':'right';c.fillText('contact',mapX(p0.x)+(S.dir>0?9:-9),Y(p0.y)-8);c.textAlign='left';
+  if(A.arrive){const q=at(A.pts,A.arrive.t);c.strokeStyle=css('--ball');c.setLineDash([3,3]);c.beginPath();c.moveTo(mapX(q.x),Y(1));c.lineTo(mapX(q.x),Y(0));c.stroke();c.setLineDash([]);}
+  // ballon animé
+  const q=at(A.pts,Math.min(anim,A.t));c.fillStyle=css('--ball');c.strokeStyle=css('--ink');c.lineWidth=2;
+  c.beginPath();c.arc(mapX(q.x),Y(q.y),7,0,7);c.fill();c.stroke();
+  if($('ghostOn').checked){const g=at(B.pts,Math.min(anim,B.t));c.strokeStyle=css('--ghost');c.lineWidth=1.5;c.beginPath();c.arc(mapX(g.x),Y(g.y),6,0,7);c.stroke();}
+}
+function drawTop(){
+  const c=ct.getContext('2d'),H=ct.height/dpr;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);
+  const zr=6.2,Z=z=>H/2+(z/zr)*(H/2-6);
+  c.fillStyle=css('--free');c.fillRect(mapX(X0),Z(-zr),mapX(X1)-mapX(X0),Z(zr)-Z(-zr));
+  c.fillStyle=css('--court');c.fillRect(mapX(-9),Z(-4.5),mapX(9)-mapX(-9),Z(4.5)-Z(-4.5));
+  c.strokeStyle=css('--chalk');c.lineWidth=1.5;c.strokeRect(mapX(-9),Z(-4.5),mapX(9)-mapX(-9),Z(4.5)-Z(-4.5));
+  [-3,3].forEach(x=>{c.beginPath();c.moveTo(mapX(x),Z(-4.5));c.lineTo(mapX(x),Z(4.5));c.stroke();});
+  c.lineWidth=3;c.beginPath();c.moveTo(mapX(0),Z(-5));c.lineTo(mapX(0),Z(5));c.stroke();
+  if($('ghostOn').checked)path(c,B.pts,p=>mapX(p.x),p=>Z(p.z),css('--ghost'),2,[6,5]);
+  path(c,A.pts,p=>mapX(p.x),p=>Z(p.z),css('--ball'),3,[]);
+  const q=at(A.pts,Math.min(anim,A.t));c.fillStyle=css('--ball');c.strokeStyle=css('--ink');c.lineWidth=2;
+  c.beginPath();c.arc(mapX(q.x),Z(q.z),6,0,7);c.fill();c.stroke();
+  const e=A.end;if(!A.netHit){c.strokeStyle=css('--chalk');c.lineWidth=1.5;c.beginPath();c.moveTo(mapX(e.x)-5,Z(e.z)-5);c.lineTo(mapX(e.x)+5,Z(e.z)+5);c.moveTo(mapX(e.x)+5,Z(e.z)-5);c.lineTo(mapX(e.x)-5,Z(e.z)+5);c.stroke();}
+}
+function path(c,pts,fx,fy,color,w,dash){c.strokeStyle=color;c.lineWidth=w;c.setLineDash(dash);c.beginPath();pts.forEach((p,i)=>i?c.lineTo(fx(p),fy(p)):c.moveTo(fx(p),fy(p)));c.stroke();c.setLineDash([]);}
+function at(pts,t){
+  let lo=0,hi=pts.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(pts[m].t<=t)lo=m;else hi=m;}
+  const a=pts[lo],b=pts[hi],k=b.t>a.t?Math.min(1,Math.max(0,(t-a.t)/(b.t-a.t))):0;
+  return{x:a.x+(b.x-a.x)*k,y:a.y+(b.y-a.y)*k,z:a.z+(b.z-a.z)*k};
+}
+
+/* ---------- Animation ---------- */
+let anim=0,last=performance.now();
+const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame(now){
+  const dt=Math.min(0.05,(now-last)/1000);last=now;
+  if(!reduce){anim+=dt*($('slow').checked?0.25:1);if(anim>Math.max(A.t,B.t)+0.7)anim=0;}else anim=A.t;
+  draw();requestAnimationFrame(frame);
+}
+
+/* ---------- Copier ---------- */
+$('copy').addEventListener('click',()=>{
+  const p=PRESETS[cur],arr=A.arrive,netM=A.net&&!A.netHit?Math.round((A.net.y-netH)*100):null,lt=landTxt(A);
+  const txt=`Labo ballon · ${p.info}\n`+
+  `vitesse ${Math.round(S.v)} km/h, angle ${S.ang}°, frappe à ${fmt(S.h,2)} m, ${fmt(S.dist,1)} m du filet, effet ${S.spin} tours/s, flottement ${fmt(S.flt,1)}, filet ${fmt(netH,2)} m\n`+
+  `→ arrivée à 1 m : ${arr?fmt(arr.t,2)+' s à '+Math.round(arr.v*3.6)+' km/h':'—'} · marge filet : ${netM===null?(A.netHit?'filet':'—'):netM+' cm'} · chute : ${lt.n}${lt.u?' '+lt.u:''} (${lt.l.toLowerCase()})`;
+  const box=$('copyBox');
+  const ok=()=>{$('copied').textContent='Copié. Colle-le dans la conversation.';box.hidden=true;};
+  const fail=()=>{box.value=txt;box.hidden=false;box.focus();box.select();$('copied').textContent='Sélectionné : copie-le à la main.';};
+  try{navigator.clipboard.writeText(txt).then(ok,fail);}catch(e){fail();}
+});
+
+addEventListener('resize',size);
+loadPreset('flottant');size();requestAnimationFrame(frame);
+})();
+</script>
