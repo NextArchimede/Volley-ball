@@ -1335,7 +1335,7 @@ const BLOCKP=PO({lean:.04,head:-.25,sLf:3.0,sRf:3.0,sLa:.14,sRa:.14,eL:.05,eR:.0
 const SM=ANIMS.smash,MA=ANIMS.manchette,PA=ANIMS.passe,DE=ANIMS.defense,SV=ANIMS.service,AT=ANIMS.attente;
 function angLerp(a,b,k){let d=((b-a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;return a+d*k;}
 function targetPose(p,dt){
-  p.ready=false;
+  p.ready=false;p.running=false;
   const b=S.ball,P=S.plan,sp=Math.hypot(p.vel.x,p.vel.z);
   if(p.dive){const t=p.dive.t;return DE.sample(t<0.3?t*1.27:t<0.95?0.38+(t-0.3)*0.877:Math.min(1.8,0.95+(t-0.95)/0.35*0.85));}
   if(p.blocking&&p.jumpT>=0)return Object.assign({},BLOCKP);
@@ -1356,6 +1356,7 @@ function targetPose(p,dt){
     if(P.kind==='spike'&&sp<0.8&&b.v.y<0){const o=SM.sample(.76);o.z=0;return o;}
   }
   if(sp>0.7){
+    p.running=true;
     p.phase+=dt*(4+sp*1.6);const o=ANIMS.course.sample((p.phase/(Math.PI*2)*0.62)%0.62);
     const k=Math.min(1,(sp-0.7)/2.2);const r={};for(const n of KEYS)r[n]=lerp(READY[n],o[n],k);r.air=0;return r;
   }
@@ -1375,14 +1376,20 @@ function animatePlayer(p,dt){
   }else if(p.dive)yaw=Math.atan2(p.dive.dx,p.dive.dz);
   else if(S.phase==='play'&&!(p===S.serverP&&S.lastKind==='serve'&&S.touches===1&&S.lastTeam===p.team&&false)){
     const dx=b.p.x-p.pos.x,dz=b.p.z-p.pos.z;
-    if(Math.hypot(dx,dz)>0.4){const by=Math.atan2(dx,dz);const rel=angLerp(yaw,by,1)-yaw;yaw+=clamp(rel,-1.3,1.3);}
+    const sp=Math.hypot(p.vel.x,p.vel.z),busy=S.plan&&p===S.plan.player&&hdist(p.pos,S.plan.P)<2.2;
+    if(sp>2.6&&!busy){const my=Math.atan2(p.vel.x,p.vel.z),rel=angLerp(yaw,my,1)-yaw;if(Math.abs(rel)<1.9)yaw+=rel;else{const by=my+Math.PI,r2=angLerp(yaw,by,1)-yaw;yaw+=clamp(r2,-0.9,0.9);}}
+    else if(Math.hypot(dx,dz)>0.4){const by=Math.atan2(dx,dz);const rel=angLerp(yaw,by,1)-yaw;yaw+=clamp(rel,-1.3,1.3);}
   }
   p.yaw=angLerp(p.yaw,yaw,1-Math.exp(-(p.dive?16:8)*dt));
   if(mocap){
     let want=null,t=0,rate=7;
     if(p.dive){const dt_=p.dive.t,f=dt_<0.3?31+dt_/0.3*12:dt_<0.95?43+(dt_-0.95+0.65)/0.65*20:63+Math.min(1,(dt_-0.95)/0.75)*32;want=p.dive.side>0?'diveL':'diveR';t=f/30;rate=30;}
     else if(p.sad>0){p.sad+=dt;want='miss';t=Math.min(88,41+p.sad*30)/30;rate=5;}
-    else if(p.ready&&Math.hypot(p.vel.x,p.vel.z)<0.6&&p.hopT<0&&p.jumpT<0){p.idleT=((p.idleT||Math.random()*4)+dt)%4.5;want='idle';t=p.idleT+0.05;}
+    else if(p.running&&ATH.clips.jog&&p.hopT<0&&p.jumpT<0&&!p.act){
+      const sp=Math.hypot(p.vel.x,p.vel.z),fw=(p.vel.x*Math.sin(p.yaw)+p.vel.z*Math.cos(p.yaw))/Math.max(sp,1e-3);
+      if(Math.abs(fw)>0.55){const D=ATH.clips.jog.dur;p.jogT=((p.jogT||0)+dt*clamp(sp/1.9,0.7,2.3)*Math.sign(fw)+D)%D;want='jog';t=p.jogT;rate=6*clamp((sp-0.7)/1.5,0.2,1);}
+    }
+    if(!want&&p.ready&&Math.hypot(p.vel.x,p.vel.z)<0.6&&p.hopT<0&&p.jumpT<0){p.idleT=((p.idleT||Math.random()*4)+dt)%4.5;want='idle';t=p.idleT+0.05;}
     if(want&&p.clip!==want&&p.clipW>0.05&&rate<20){p.clipW=Math.max(0,p.clipW-dt*10);}
     else{if(want)p.clip=want;p.clipT=t;p.clipW=clamp((p.clipW||0)+(want?1:-1)*dt*rate,0,1);}
   }
