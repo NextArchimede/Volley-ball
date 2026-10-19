@@ -125,9 +125,16 @@ h1 span{color:var(--ball)}
       <li><b>Service</b><span>R pour lancer, R pour frapper au sommet du lancer. ←→ vise, ↑ profond, ↓ court.</span></li>
       <li><b>Rotations</b><span>5-1 avec libéro. On tourne à chaque side-out, le joueur en P1 sert.</span></li>
     </ul>
-    <div class="ctrls">Téléphone : joystick et boutons A Z E R. Entrée ou Espace pour lancer la partie.</div>
+    <div class="ctrls">Téléphone : joystick et boutons A Z E R. <span id="loadSt">Chargement des joueurs…</span></div>
   </div>
 </div>
+<div id="err" hidden style="position:fixed;left:12px;right:12px;bottom:12px;z-index:99;background:#2a0d12;color:#ffd9d2;border:1px solid #ff6b5a;border-radius:8px;padding:10px 12px;font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto"></div>
+<script>
+window.showErr=function(e){var b=document.getElementById('err');if(!b||b.dataset.n>3)return;b.dataset.n=(+b.dataset.n||0)+1;b.hidden=false;
+  b.textContent+=(b.textContent?'\n':'')+'Erreur : '+String((e&&(e.stack||e.message))||e||'inconnue').split('\n').slice(0,3).join('\n');};
+window.addEventListener('error',function(e){var t=e.target;if(t&&t!==window){if(t.tagName==='SCRIPT')showErr('script non chargé : '+t.src);return;}showErr(e.error||e.message);},true);
+window.addEventListener('unhandledrejection',function(e){showErr(e.reason);});
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -145,7 +152,7 @@ const hdist=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 
 /* ---------- Scène ---------- */
 const canvas=$('c');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+let renderer;try{renderer=new THREE.WebGLRenderer({canvas,antialias:true});}catch(e){showErr('WebGL indisponible sur ce navigateur ou cette carte graphique. '+e.message);throw e;}
 const DPR_MAX=Math.min(window.devicePixelRatio||1,1.5);let dpr=DPR_MAX;renderer.setPixelRatio(dpr);
 THREE.ColorManagement.legacyMode=false;renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
@@ -641,6 +648,7 @@ function upgradePlayers(){
     scene.remove(p.mesh);scene.add(A.root);p.mesh=A.root;p.J=A.J;p.skin=A.skin;
   });
 }
+function loadSt(t){const e=$('loadSt');if(e)e.textContent=t;}
 try{
   // Le binaire est embarqué en base64 : on le décode nous-mêmes et on passe un GLB au loader (aucune requête data:)
   fetch('assets/player.json').then(r=>r.json()).then(js=>{
@@ -653,9 +661,9 @@ try{
     const o=20+jl;dv.setUint32(o,bl,true);dv.setUint32(o+4,0x004E4942,true);u8.set(bin,o+8);
     // textures via <img> (blob:) plutôt que fetch, bloqué dans la page publiée
     const cib=window.createImageBitmap;window.createImageBitmap=undefined;
-    try{new THREE.GLTFLoader().parse(glb,'',g=>{ATH=analyzeAthlete(g.scene,g.animations);upgradePlayers();},e=>console.warn('modèle joueur indisponible',e));}
+    try{new THREE.GLTFLoader().parse(glb,'',g=>{try{ATH=analyzeAthlete(g.scene,g.animations);upgradePlayers();loadSt('Joueurs prêts.');}catch(e){ATH=null;loadSt('Modèle simplifié.');showErr(e);}},e=>{loadSt('Modèle simplifié (textures bloquées).');console.warn('modèle joueur indisponible',e);});}
     finally{window.createImageBitmap=cib;}
-  }).catch(e=>console.warn('modèle joueur indisponible',e));
+  }).catch(e=>{loadSt('Modèle simplifié (chargement impossible).');console.warn('modèle joueur indisponible',e);});
 }catch(e){console.warn(e);}
 
 /* ---------- État ---------- */
@@ -1020,7 +1028,7 @@ function setupHumanBlock(){
   let ctrl=front.slice().sort((a,b)=>Math.abs(a.pos.z-P.P.z)-Math.abs(b.pos.z-P.P.z))[0];
   if(S.mode==='player'&&isFront(S.me)&&Math.abs(S.me.pos.z-P.P.z)<3)ctrl=S.me;
   const partner=front.filter(p=>p!==ctrl).sort((a,b)=>Math.abs(a.pos.z)-Math.abs(b.pos.z))[0];
-  S.hb={ctrl,partner,active:true,autoJ:false,partnerAt:null};
+  S.hb={ctrl,partner:partner||null,active:true,autoJ:false,partnerAt:null};
   if(!isHuman(ctrl)){setCall(null);return;}
   setCallRaw('CONTRE',S.pro?'←→ suis l\'attaquant · E pour sauter juste après lui':'Placement et saut automatiques · ←→ corriger · E pour sauter toi-même');
 }
@@ -1031,15 +1039,15 @@ function hbJump(){
 function hbTick(){
   const H=S.hb;if(!H)return;const P=S.plan;
   if((!S.pro||!isHuman(H.ctrl))&&!H.autoJ&&P&&P.team===1&&P.kind==='spike'&&S.t>=P.t-TAPEX+0.07){H.autoJ=true;hbJump();}
-  if(H.partnerAt!==null&&S.t>=H.partnerAt){H.partnerAt=null;if(H.partner.jumpT<0){H.partner.jumpT=0;H.partner.blocking=true;}}
+  if(H.partnerAt!==null&&S.t>=H.partnerAt){H.partnerAt=null;if(H.partner&&H.partner.jumpT<0){H.partner.jumpT=0;H.partner.blocking=true;}}
   const pend=S.pendingHB,b=S.ball;
   if(pend&&b.p.x<=-0.3){
     S.pendingHB=null;
     for(const p of [H.ctrl,H.partner]){
-      if(!p.blocking)continue;
+      if(!p||!p.blocking)continue;
       const top=2.3+p.y,placed=Math.abs(p.pos.x+0.45)<0.6;
       if(placed&&Math.abs(b.p.z-p.pos.z)<=0.42&&b.p.y<=top+R){
-        const outer=[H.ctrl,H.partner].filter(x=>x.blocking).reduce((o,x)=>Math.abs(x.pos.z)>Math.abs(o.pos.z)?x:o,p);
+        const outer=[H.ctrl,H.partner].filter(x=>x&&x.blocking).reduce((o,x)=>Math.abs(x.pos.z)>Math.abs(o.pos.z)?x:o,p);
         const edge=p===outer&&Math.abs(b.p.z)>Math.abs(p.pos.z)+0.18,r=Math.random();
         const stuffP=clamp(0.3+(top-b.p.y)*0.9,0.2,0.65);
         const type=edge&&pend.q>0.6&&r<0.25?'out':r<stuffP?'stuff':r<stuffP+0.35?'soft':'through';
@@ -1459,10 +1467,13 @@ function adaptQuality(ms){
 function frame(now){
   adaptQuality(now-last);
   let dt=Math.min(0.05,(now-last)/1000);last=now;
-  if(FX.freeze>0){FX.freeze-=dt;}
-  else if(S.phase!=='intro'){acc+=dt;while(acc>=DT){step(DT);acc-=DT;}}
-  if(!fpsEl.hidden){fpsEl.textContent=Math.round(1000/ftAvg)+' i/s · résolution '+dpr.toFixed(2);}
-  updateHud();render(dt);requestAnimationFrame(frame);
+  requestAnimationFrame(frame);
+  try{
+    if(FX.freeze>0){FX.freeze-=dt;}
+    else if(S.phase!=='intro'){acc+=dt;while(acc>=DT){step(DT);acc-=DT;}}
+    if(!fpsEl.hidden){fpsEl.textContent=Math.round(1000/ftAvg)+' i/s · résolution '+dpr.toFixed(2);}
+    updateHud();render(dt);
+  }catch(e){acc=0;showErr(e);}
 }
 // scène de départ : ballon posé au service
 [0,1].forEach(t=>{lineup(t);servePositions(t);});players.forEach(p=>p.pos.copy(p.home));
