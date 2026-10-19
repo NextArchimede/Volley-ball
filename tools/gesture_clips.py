@@ -33,9 +33,9 @@ SH = zA
 ready = stance(0.32, 0.26)
 GEST = {}
 # Manchette : bras tendus joints devant le bassin, poussée des jambes
-b0 = P_(ready, hl=V(0.05, -0.50, PZ - 0.08), hr=V(-0.05, -0.50, PZ - 0.08), el=V(0.6, -0.3, PZ - 0.4), er=V(-0.6, -0.3, PZ - 0.4), lean=0.55, head=-0.25)
-b1 = P_(b0, drop=0.18, hl=V(0.04, -0.55, PZ + 0.0), hr=V(-0.04, -0.55, PZ + 0.0), lean=0.45)
-b2 = P_(b0, drop=0.10, hl=V(0.04, -0.52, PZ + 0.12), hr=V(-0.04, -0.52, PZ + 0.12), lean=0.35)
+b0 = P_(ready, hl=V(0.10, -0.66, PZ - 0.12), hr=V(-0.10, -0.66, PZ - 0.12), el=V(0.45, -0.5, PZ - 0.7), er=V(-0.45, -0.5, PZ - 0.7), lean=0.55, head=-0.25)
+b1 = P_(b0, drop=0.18, hl=V(0.10, -0.70, PZ - 0.02), hr=V(-0.10, -0.70, PZ - 0.02), lean=0.45)
+b2 = P_(b0, drop=0.10, hl=V(0.10, -0.68, PZ + 0.10), hr=V(-0.10, -0.68, PZ + 0.10), lean=0.35)
 GEST['g_bump'] = [(1, b0), (9, b1), (16, b2), (24, P_(ready, hl=V(0.3, -0.35, PZ + 0.05), hr=V(-0.3, -0.35, PZ + 0.05), el=V(0.6, 0, PZ - 0.2), er=V(-0.6, 0, PZ - 0.2), lean=0.4))]
 # Passe : mains au-dessus du front, coudes ouverts, extension bras + jambes
 s0 = P_(stance(0.24, 0.16), hl=V(0.09, -0.16, SH + 0.36), hr=V(-0.09, -0.16, SH + 0.36), el=V(0.6, -0.2, SH + 0.1), er=V(-0.6, -0.2, SH + 0.1), lean=0.05, head=0.25)

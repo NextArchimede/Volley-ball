@@ -615,7 +615,7 @@ function driveSkin(J,sk,p,pl){
   for(const n of ATH.order){
     const inf=ATH.info[n],T=sk.T[n]||(sk.T[n]=new THREE.Quaternion()),pw=inf.parent?sk.T[inf.parent]:inf.restParentWorld;
     if(inf.mapped){J[BONE_DRIVER[n]].getWorldQuaternion(_dq);T.copy(_dq).multiply(inf.Nb);sk.bones[n].quaternion.copy(_iq.copy(pw).invert()).multiply(T);}
-    else T.copy(pw).multiply(inf.restLocalQ);
+    else{T.copy(pw).multiply(inf.restLocalQ);sk.bones[n].quaternion.copy(inf.restLocalQ);}
   }
   const md=ATH.meta,th=md.thigh||0.58,ca=md.calf||0.51;
   const lh=(f,k,a)=>(th*Math.cos(f)+ca*Math.cos(f-k))*Math.cos(a);
