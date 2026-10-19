@@ -573,7 +573,7 @@ function analyzeAthlete(scene,anims){
   }
   // clips de capture de mouvement (Mixamo, transférés dans Blender) : un interpolant par os
   const clips={};
-  (anims||[]).forEach(c=>{clips[c.name]={dur:c.duration,noPos:c.name==='block'||c.name==='shuffleL',tracks:c.tracks.map(t=>{const [bone,prop]=t.name.split('.');
+  (anims||[]).forEach(c=>{clips[c.name]={dur:c.duration,noPos:false,tracks:c.tracks.map(t=>{const [bone,prop]=t.name.split('.');
     return(prop==='quaternion'||(prop==='position'&&bone==='pelvis'))&&bones[bone]?{bone,q:prop==='quaternion',it:t.createInterpolant()}:null;}).filter(Boolean)};});
   return{scene,info,meta,clips,order:Object.keys(bones).sort((a,b)=>depth(bones[a])-depth(bones[b]))};
 }
@@ -1336,24 +1336,26 @@ const BLOCKP=PO({lean:.04,head:-.25,sLf:3.0,sRf:3.0,sLa:.14,sRa:.14,eL:.05,eR:.0
 const SM=ANIMS.smash,MA=ANIMS.manchette,PA=ANIMS.passe,DE=ANIMS.defense,SV=ANIMS.service,AT=ANIMS.attente;
 function angLerp(a,b,k){let d=((b-a+Math.PI)%(Math.PI*2)+Math.PI*2)%(Math.PI*2)-Math.PI;return a+d*k;}
 function targetPose(p,dt){
-  p.ready=false;p.running=false;
+  p.ready=false;p.running=false;p.gest=null;const G=(n,f)=>{p.gest={n,t:f/30};};
   const b=S.ball,P=S.plan,sp=Math.hypot(p.vel.x,p.vel.z);
   if(p.dive){const t=p.dive.t;return DE.sample(t<0.3?t*1.27:t<0.95?0.38+(t-0.3)*0.877:Math.min(1.8,0.95+(t-0.95)/0.35*0.85));}
-  if(p.blocking&&p.jumpT>=0)return Object.assign({},BLOCKP);
-  if(p.jumpT>=0){const o=SM.sample(0.94+Math.min(1,p.jumpT/TJUMP)*0.68);o.air=0;return o;}
+  if(p.blocking&&p.jumpT>=0){G('block',1+20*Math.min(1,p.jumpT/TJUMP));return Object.assign({},BLOCKP);}
+  if(p.jumpT>=0&&!(p.act&&p.act.kind==='spike')){G('spike',1+Math.min(1,p.jumpT/TAPEX)*11);const o=SM.sample(0.94+Math.min(1,p.jumpT/TJUMP)*0.68);o.air=0;return o;}
   if(p.hopT>=0){const o=AT.sample(1.08);o.air=0;return o;}
-  if(p===S.serverP&&S.phase==='serve')return SV.sample(0);
-  if(p===S.serverP&&S.phase==='toss')return SV.sample(Math.min(0.5,S.flightT));
+  if(p===S.serverP&&S.phase==='serve'){G('serve',1);return SV.sample(0);}
+  if(p===S.serverP&&S.phase==='toss'){G('serve',1+Math.min(14,S.flightT*26));return SV.sample(Math.min(0.5,S.flightT));}
   if(p.act){
     p.act.t+=dt;const a=p.act,t=a.t;
     const m={bump:[MA,.86,1.0],set:[PA,.92,0.75],spike:[SM,1.27,0.35],serve:[SV,.82,0.7]}[a.kind];
+    const gc={bump:['bump',9,24],set:['set',8,24],dump:['set',8,24],spike:['spike',13,26],serve:['serve',16,26]}[a.kind];
+    if(gc&&gc[1]+t*30<gc[2]+6)G(gc[0],Math.min(gc[2],gc[1]+t*30));
     if(m&&t<m[2]){const o=m[0].sample(m[1]+t*(a.kind==='serve'?0.7:1));o.air=0;o.z=0;return o;}
     p.act=null;
   }
   if(P&&p===P.player&&S.phase==='play'){
     const d=hdist(p.pos,b.p);
-    if(P.kind==='bump'&&d<3&&b.v.y<0&&b.p.y<3.2){const o=MA.sample(.72);o.z=0;return o;}
-    if(P.kind==='set'&&d<3.5&&b.v.y<0){const o=PA.sample(.6);return o;}
+    if(P.kind==='bump'&&d<3&&b.v.y<0&&b.p.y<3.2){G(b.p.y>1.7?'set':'bump',1);const o=MA.sample(.72);o.z=0;return o;}
+    if(P.kind==='set'&&d<3.5&&b.v.y<0){G('set',1);const o=PA.sample(.6);return o;}
     if(P.kind==='spike'&&sp<0.8&&b.v.y<0){const o=SM.sample(.76);o.z=0;return o;}
   }
   if(sp>0.7){
@@ -1384,8 +1386,8 @@ function animatePlayer(p,dt){
   p.yaw=angLerp(p.yaw,yaw,1-Math.exp(-(p.dive?16:8)*dt));
   if(mocap){
     let want=null,t=0,rate=7;
-    if(p.dive){const dt_=p.dive.t,f=dt_<0.3?31+dt_/0.3*12:dt_<0.95?43+(dt_-0.95+0.65)/0.65*20:63+Math.min(1,(dt_-0.95)/0.75)*32;want=p.dive.side>0?'diveL':'diveR';t=f/30;rate=30;}
-    else if(p.blocking&&p.jumpT>=0&&ATH.clips.block){want='block';t=(13+20*Math.min(1,p.jumpT/TJUMP))/30;rate=25;}
+    if(p.gest&&ATH.clips[p.gest.n]&&!p.dive){want=p.gest.n;t=p.gest.t;rate=25;}
+    else if(p.dive){const dt_=p.dive.t,f=dt_<0.3?31+dt_/0.3*12:dt_<0.95?43+(dt_-0.95+0.65)/0.65*20:63+Math.min(1,(dt_-0.95)/0.75)*32;want=p.dive.side>0?'diveL':'diveR';t=f/30;rate=30;}
     else if(p.sad>0){p.sad+=dt;want='miss';t=Math.min(88,41+p.sad*30)/30;rate=5;}
     else if(p.running&&ATH.clips.jog&&p.hopT<0&&p.jumpT<0&&!p.act){
       const sp=Math.hypot(p.vel.x,p.vel.z),fw=(p.vel.x*Math.sin(p.yaw)+p.vel.z*Math.cos(p.yaw))/Math.max(sp,1e-3);

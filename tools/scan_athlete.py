@@ -132,8 +132,10 @@ bpy.context.scene["sideout"] = json.dumps(info); print("INFO", json.dumps(info))
 # --- animations (même code que pour le joueur MakeHuman)
 MX = '/tmp/claude-0/mx'
 exec(open('/tmp/claude-0/tr/retarget_block.py').read())
+exec(open('/home/claude/side-out/tools/gesture_clips.py').read())
+KEEP=[c[0] for c in CLIPS]+['bump','set','spike','serve','block','shuffleL']
 for a_ in list(bpy.data.actions):
-    if a_.name not in [c[0] for c in CLIPS]: bpy.data.actions.remove(a_)
+    if a_.name not in KEEP: bpy.data.actions.remove(a_)
 T.animation_data.action = None
 for pb in T.pose.bones: pb.rotation_quaternion = Quaternion(); pb.location = Vector()
 bpy.context.scene.frame_set(1)
