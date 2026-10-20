@@ -585,6 +585,11 @@ function analyzeAthlete(scene,anims){
   const clips={};
   (anims||[]).forEach(c=>{clips[c.name]={dur:c.duration,noPos:false,tracks:c.tracks.map(t=>{const [bone,prop]=t.name.split('.');
     return(prop==='quaternion'||(prop==='position'&&bone==='pelvis'))&&bones[bone]?{bone,q:prop==='quaternion',it:t.createInterpolant()}:null;}).filter(Boolean)};});
+  // boucles sans couture : l'écart entre la dernière et la première image est réparti sur toute la boucle
+  for(const n of ['jog','shuffleL','idle']){const C=clips[n];if(!C)continue;C.loop=true;
+    for(const tr of C.tracks){const a=tr.it.evaluate(0).slice(),z=tr.it.evaluate(C.dur).slice();
+      if(tr.q){const qa=new THREE.Quaternion().fromArray(a),qz=new THREE.Quaternion().fromArray(z);tr.corr=qa.multiply(qz.invert());}
+      else tr.dpos=new V3(a[0]-z[0],a[1]-z[1],a[2]-z[2]);}}
   return{scene,info,meta,clips,order:Object.keys(bones).sort((a,b)=>depth(bones[a])-depth(bones[b]))};
 }
 function makeDriver(){
@@ -634,10 +639,21 @@ function driveSkin(J,sk,p,pl){
   hb.position.copy(hi.restLocalPos).add(new V3(0,dy,0).applyQuaternion(_iq.copy(hi.restParentWorld).invert()));
   if(pl&&pl.clip&&pl.clipW>0.002){
     const C=ATH.clips[pl.clip];if(C){const w=pl.clipW;
+      const u=C.loop?clamp(pl.clipT/C.dur,0,1):0;
       for(const tr of C.tracks){const v=tr.it.evaluate(pl.clipT),bn=sk.bones[tr.bone];
-        if(tr.q){_cq.fromArray(v);bn.quaternion.slerp(_cq,w);}else if(!C.noPos){_cv.fromArray(v);bn.position.lerp(_cv,w);}}}
+        if(tr.q){_cq.fromArray(v);if(tr.corr)_cq.premultiply(_sq.identity().slerp(tr.corr,u));bn.quaternion.slerp(_cq,w);}
+        else if(!C.noPos){_cv.fromArray(v);if(tr.dpos)_cv.addScaledVector(tr.dpos,u);bn.position.lerp(_cv,w);}}}
   }
+  if(!pl)return;
+  // fondu depuis la dernière pose affichée
+  if(pl.xfReq&&pl.lastQ){pl.xfReq=false;const q={};for(const n in pl.lastQ)q[n]=pl.lastQ[n].clone();pl.xf={t:0,dur:pl.xfDur||0.2,q,pp:pl.lastP.clone()};}
+  pl.xfReq=false;
+  if(pl.xf){const X=pl.xf;X.t+=pl.dtF||0;let e=Math.min(1,X.t/X.dur);e=e*e*(3-2*e);
+    if(e>=1)pl.xf=null;else{for(const n in X.q)sk.bones[n].quaternion.copy(_xq.copy(X.q[n]).slerp(sk.bones[n].quaternion,e));hb.position.lerpVectors(X.pp,hb.position,e);}}
+  if(!pl.lastQ){pl.lastQ={};pl.lastP=new V3();for(const n of ATH.order)pl.lastQ[n]=new THREE.Quaternion();}
+  for(const n of ATH.order)pl.lastQ[n].copy(sk.bones[n].quaternion);pl.lastP.copy(hb.position);
 }
+const _xq=new THREE.Quaternion(),_sq=new THREE.Quaternion();
 const SKIN_TEX=['young_caucasian_male','young_african_male','young_asian_male','middleage_caucasian_male','toigo_light_skin_male_bronze','young_african_male'].map(n=>{
   const t=new THREE.TextureLoader().load('assets/skin_'+n+'.jpg');t.flipY=false;t.encoding=THREE.sRGBEncoding;return{name:n,tex:t};});
 function upgradePlayers(){
@@ -1474,9 +1490,21 @@ function animatePlayer(p,dt){
       if(sp>0.6&&Math.abs(lat)>sp*0.6){const D=ATH.clips.shuffleL.dur;p.shufT=((p.shufT||0)+dt*clamp(sp/1.6,0.7,2)*Math.sign(lat)+D)%D;want='shuffleL';t=p.shufT;rate=7;}
     }
     if(!want&&p.ready&&Math.hypot(p.vel.x,p.vel.z)<0.6&&p.hopT<0&&p.jumpT<0){p.idleT=((p.idleT||Math.random()*4)+dt)%4.5;want='idle';t=p.idleT+0.05;}
-    if(want&&p.clip!==want&&p.clipW>0.05&&rate<20){p.clipW=Math.max(0,p.clipW-dt*10);}
-    else{if(want)p.clip=want;p.clipT=t;p.clipW=clamp((p.clipW||0)+(want?1:-1)*dt*rate,0,1);}
+    // Fondu enchaîné : à chaque changement de source d'animation (clip, pose procédurale, saut dans le temps d'un clip),
+    // on repart de la pose réellement affichée et on glisse vers la nouvelle en XF secondes (voir driveSkin)
+    const src=want||'proc',tw=want==='jog'?clamp((Math.hypot(p.vel.x,p.vel.z)-0.7)/1.0,0.35,1):want?1:0;
+    let jump=false;
+    if(want&&p.clip===want&&p.src===src){const D=ATH.clips[want].dur;let d=Math.abs(t-(p.clipT||0));if(/^(jog|shuffleL|idle)$/.test(want))d=Math.min(d,D-d);jump=d>0.1;}
+    if(p.src!==undefined&&(src!==p.src||jump)){
+      const G_=n=>/^(bump|set|spike|serve|block)$/.test(n);
+      p.xfDur=jump?0.1:want==='diveL'||want==='diveR'?0.1:G_(src)&&!G_(p.src)?(p.act?0.14:0.28):G_(p.src)&&!G_(src)?0.32:G_(src)?(p.act?0.12:0.22):0.24;
+      p.xfReq=true;
+    }
+    p.src=src;
+    if(want){if(p.clip!==want){p.clip=want;p.clipW=tw;}else p.clipW=lerp(p.clipW||0,tw,1-Math.exp(-8*dt));p.clipT=t;}
+    else p.clipW=0;
   }
+  p.dtF=dt;
   applyPose(p.J,p.pose);if(p.skin)driveSkin(p.J,p.skin,p.pose,p);
   let tilt=0;
   // inclinaison du corps dans l'accélération
