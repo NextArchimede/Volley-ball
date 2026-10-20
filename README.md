@@ -19,17 +19,22 @@ python3 -m http.server 8000
 
 puis ouvrir http://localhost:8000.
 
-## Commandes (clavier)
+## Commandes (clavier + souris)
 
-| Touche | Action |
+| Commande | Action |
 |---|---|
-| Flèches | Direction (déplacement, visée, choix de passe/réception) |
-| A | Toucher le ballon : touche haute si le ballon est haut, manchette s'il est bas. Maintenir = plongeon ; en aide pro, pas d'appel avant la frappe adverse |
-| Z | Deuxième main du passeur (renvoi direct, ↑ pour l'appuyer au fond) ; en l'air = balle placée (↓ = feinte) |
-| E | Saut (ou course d'élan en aide pro), puis 2e appui = frappe ; saut au contre |
-| R | Service : lancer, puis frapper au sommet |
+| ZQSD (ou flèches) | Déplacement (WASD sur un clavier QWERTY : mêmes touches physiques) |
+| Souris | Viser : le réticule au sol indique où part le ballon (service, réception, passe, attaque) |
+| Clic gauche | Manchette ; service (lancer, puis frapper au sommet) ; frappe en plein saut. Maintenu en défense = plongeon |
+| E | Passe / touche haute. En 2e touche, viser le camp adverse = deuxième main |
+| Espace | Saut (attaque, ou course d'élan en aide pro) ; saut au contre |
+| Clic droit en l'air | Balle placée (visée courte = feinte) |
 | C / V | Changer de vue / afficher le cercle de chute |
 | M / F | Couper le son / afficher les images par seconde |
+
+Passe selon la zone visée dans son camp : côté gauche ou droit = balle haute (tout près du filet = tendue), milieu = centre rapide, derrière les 3 m = pipe.
+
+Sur téléphone : joystick et boutons A Z E R (A touche, Z deuxième main / placée, E saut puis frappe, R service).
 
 ## Fichiers
 

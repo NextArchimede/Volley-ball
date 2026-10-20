@@ -60,6 +60,8 @@ html,body{height:100%;margin:0;background:var(--ink);color:var(--chalk);overflow
 #act.idle{opacity:.45}
 
 [hidden]{display:none!important}
+#aimTag{position:fixed;left:0;top:0;z-index:6;pointer-events:none;background:var(--panel);color:var(--ball);font-family:var(--disp);font-weight:600;letter-spacing:.05em;font-size:13px;padding:3px 8px;text-transform:uppercase;white-space:nowrap}
+#c{cursor:crosshair}
 #ov{position:fixed;inset:0;display:grid;place-items:center;background:rgba(6,13,21,.78);z-index:10;padding:calc(env(safe-area-inset-top,0px) + 16px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));overflow:auto}
 .card{max-width:460px;width:100%;display:grid;gap:14px}
 .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ball);font-weight:600}
@@ -97,7 +99,7 @@ h1 span{color:var(--ball)}
 <div id="touches" hidden><span id="tlab">TOUCHES</span><i></i><i></i><i></i></div>
 <div id="call"><div class="k" id="callK"></div><div class="h" id="callH"></div></div>
 <div id="flash"></div>
-<div id="hint"><kbd>Flèches</kbd> direction · <kbd>A</kbd> touche (manchette ou haute) · <kbd>Z</kbd> deuxième main / balle placée · <kbd>E</kbd> saut puis frappe · <kbd>R</kbd> service · <kbd>C</kbd> vue · <kbd>V</kbd> cercle · <kbd>M</kbd> son · <kbd>F</kbd> images/s</div>
+<div id="hint"><kbd>ZQSD</kbd> déplacement · <kbd>Souris</kbd> viser · <kbd>Clic G</kbd> manchette / service / frappe en l'air · <kbd>E</kbd> passe · <kbd>Espace</kbd> saut · <kbd>Clic D</kbd> en l'air : placée · <kbd>C</kbd> vue · <kbd>V</kbd> cercle · <kbd>M</kbd> son</div>
 <div id="pad"><div id="stick"><div id="knob"></div></div><div id="btns"><button type="button" data-k="A">A<small>Touche</small></button><button type="button" data-k="Z">Z<small>2e main</small></button><button type="button" data-k="E">E<small>Saut</small></button><button type="button" data-k="R">R<small>Service</small></button></div></div>
 
 <div id="ov">
@@ -114,20 +116,21 @@ h1 span{color:var(--ball)}
       <div class="picks" id="picks"></div>
     </div>
     <ul class="rules">
-      <li><b>Mode Joueur</b><span>Tu contrôles uniquement ton joueur, entouré de jaune, et tu te déplaces librement. Tes coéquipiers IA prennent les ballons qui tombent chez eux. Appuie sur A ou E près d'un ballon qui leur est destiné pour le prendre toi-même.</span></li>
-      <li><b>Repères</b><span>Cercle sur le filet : vert, le ballon passe au-dessus ; rouge, il finit dans le filet. En attaque (aide assistée) : cercle orange au sol = point d'appel, boule jaune = point de frappe. E un peu tôt cale le saut au bon moment.</span></li>
-      <li><b>Commandes</b><span>Flèches : direction. A : toucher le ballon (touche haute si le ballon est haut, manchette s'il est bas). Z : deuxième main du passeur, ou balle placée en l'air. E : saut, puis frappe. R : service. C : vue, V : cercle de chute.</span></li>
-      <li><b>Réception</b><span>Place-toi sous le ballon et joue A au contact : touche haute si le ballon arrive haut, manchette s'il arrive bas. La flèche tenue choisit la réception : ↑ courte, ↓ longue, ←→ décalée. Tôt = tendue, tard = haute.</span></li>
-      <li><b>Défense</b><span>A maintenu = plongeon dans la direction des flèches. En aide pro, A avant la frappe adverse = pas d'appel.</span></li>
-      <li><b>Passe</b><span>A au contact : ← gauche, → droite, ↑ centre rapide, ↓ pipe, diagonales avant = balles tendues. Z = deuxième main : le passeur renvoie directement (↑ pour l'appuyer au fond).</span></li>
-      <li><b>Attaque</b><span>E pour sauter (en aide pro : course d'élan), puis E de nouveau pour frapper quand le ballon arrive à ta main. Z en l'air donne une balle placée, avec ↓ une feinte. ←→ vise ligne ou diagonale, ↑ le fond.</span></li>
-      <li><b>Contre</b><span>E pour sauter au contre, juste après l'attaquant. En aide assistée, le saut est automatique.</span></li>
-      <li><b>Service</b><span>R pour lancer, R pour frapper au sommet du lancer. ←→ vise, ↑ profond, ↓ court.</span></li>
+      <li><b>Mode Joueur</b><span>Tu contrôles uniquement ton joueur, entouré de jaune, et tu te déplaces librement. Tes coéquipiers IA prennent les ballons qui tombent chez eux. Clique ou appuie sur E près d'un ballon qui leur est destiné pour le prendre toi-même.</span></li>
+      <li><b>Repères</b><span>Cercle sur le filet : vert, le ballon passe au-dessus ; rouge, il finit dans le filet. En attaque (aide assistée) : cercle orange au sol = point d'appel, boule jaune = point de frappe. Espace un peu tôt cale le saut au bon moment.</span></li>
+      <li><b>Commandes</b><span>ZQSD (ou flèches) : déplacement. Souris : tu vises un point du terrain, le réticule au sol indique où part le ballon. Clic gauche : manchette, service, frappe en plein saut. E : passe (touche haute). Espace : saut. Clic droit en l'air : balle placée. C : vue, V : cercle de chute.</span></li>
+      <li><b>Réception</b><span>Vise l'endroit de ton camp où envoyer le ballon (près du filet = courte, plus loin = longue), puis clic gauche au contact pour la manchette, ou E si le ballon arrive haut. Tôt = tendue, tard = haute.</span></li>
+      <li><b>Défense</b><span>Clic gauche maintenu = plongeon dans la direction de déplacement. En aide pro, clic gauche avant la frappe adverse = pas d'appel.</span></li>
+      <li><b>Passe</b><span>Vise la zone de ton attaquant puis E au contact : côté gauche ou droit = balle haute (tout près du filet = tendue), milieu = centre rapide, derrière les 3 m = pipe. Viser le camp adverse = deuxième main.</span></li>
+      <li><b>Attaque</b><span>Espace pour sauter (en aide pro : course d'élan), puis clic gauche en plein saut pour frapper là où tu vises. Clic droit en l'air = balle placée ; visée courte = feinte.</span></li>
+      <li><b>Contre</b><span>Espace pour sauter au contre, juste après l'attaquant. En aide assistée, le saut est automatique.</span></li>
+      <li><b>Service</b><span>Vise dans le camp adverse, clic gauche pour lancer, clic gauche au sommet du lancer pour frapper.</span></li>
       <li><b>Rotations</b><span>5-1 avec libéro. On tourne à chaque side-out, le joueur en P1 sert.</span></li>
     </ul>
     <div class="ctrls">Téléphone : joystick et boutons A Z E R. <span id="loadSt">Chargement des joueurs…</span></div>
   </div>
 </div>
+<div id="aimTag" hidden></div>
 <div id="err" hidden style="position:fixed;left:12px;right:12px;bottom:12px;z-index:99;background:#2a0d12;color:#ffd9d2;border:1px solid #ff6b5a;border-radius:8px;padding:10px 12px;font:12px/1.4 ui-monospace,monospace;white-space:pre-wrap;max-height:40vh;overflow:auto"></div>
 <script>
 window.showErr=function(e){var b=document.getElementById('err');if(!b||b.dataset.n>3)return;b.dataset.n=(+b.dataset.n||0)+1;b.hidden=false;
@@ -701,7 +704,7 @@ function launch(from,tgt,T,spin=0,flt=0){
   const sh={spin,flt,h:hl>0.5?{x:dx/hl,z:dz/hl}:null,seed:[Math.random()*6.28,Math.random()*6.28,Math.random()*6.28]};
   const v=new V3(dx/T,(tgt.y-from.y+0.5*G*T*T)/T,dz/T);
   for(let i=0;i<12;i++){const e=tgt.clone().sub(simTo(from,v,sh,T));if(e.length()<0.02)break;v.addScaledVector(e,1.15/T);}
-  b.v.copy(v);S.shot=sh;S.flightT=0;
+  b.v.copy(v);S.shot=sh;S.flightT=0;S.tgt=tgt.clone();
   predict();
 }
 function predict(){
@@ -782,11 +785,14 @@ function contact(pl,kind,q,over){
   if(team===1){players.forEach(p=>{p.blockTo=null;});S.block=null;}
   if(team===0){S.hb=null;S.pendingHB=null;}
   if(S.mode==='team'&&!S.recvSet&&team!==S.server&&kind!=='serve'){S.recvSet=true;rallyPositions(team);}
-  const H=isHuman(pl),{ix,iy}=H?inputVec():{ix:0,iy:0};
+  const H=isHuman(pl),AIM=H&&team===0?mouseAim():null,{ix,iy}=H&&!AIM?inputVec():{ix:0,iy:0};
   let tgt,T,spin=0,flt=0,recep=null,setName='';
   if(kind==='serve'){
     flt=1.8;
-    if(H){
+    if(AIM){
+      const d=AIM.x>0.5?clamp(AIM.x,3.2,10.2):6.5,[ex,ez]=err((1-q)*2.6);
+      tgt=new V3(d+ex,R,clamp(AIM.z,-5,5)+ez);T=clamp(1.45-(d-3.5)*0.045,1.2,1.45)+(1-q)*0.3;
+    }else if(H){
       const depth=iy>0.45?8.0:iy<-0.45?3.5:6.5;const [ex,ez]=err((1-q)*2.6);
       tgt=new V3(dir*depth+ex,R,ix*3.6+ez);T=(depth<4?1.45:depth>7?1.25:1.3)+(1-q)*0.3;
     }else{
@@ -794,14 +800,16 @@ function contact(pl,kind,q,over){
       if(Math.random()<0.08)tgt.x=dir*rnd(9.4,10.5);
     }
   }else if(kind==='bump'){
-    if(S.touches>=3){const [ex,ez]=err((1-q)*2);tgt=new V3(dir*rnd(4,7)+ex,R,rnd(-3,3)+ez);T=1.7;}
+    if(S.touches>=3){const [ex,ez]=err((1-q)*2);tgt=AIM&&AIM.x>0.5?new V3(clamp(AIM.x,2,9.6)+ex,R,clamp(AIM.z,-4.8,4.8)+ez):new V3(dir*rnd(4,7)+ex,R,rnd(-3,3)+ez);T=1.7;}
     else if(q<0.15){tgt=new V3(s*rnd(3,11),R,rnd(-7,7));T=rnd(1,1.5);}
-    else if(S.touches===2){const [ex,ez]=err((1-q)*2);tgt=new V3(s*1.1+ex,3.0,pickZone(H?0:1,ix)+ez);T=1.25;}
+    else if(S.touches===2){const [ex,ez]=err((1-q)*2);tgt=new V3(s*1.1+ex,3.0,(AIM?clamp(AIM.z,-3.5,3.5):pickZone(H?0:1,ix))+ez);T=1.25;}
     else{
       // Réception intentionnelle : direction = profondeur et placement, hauteur de contact = tempo
       const h=over?0.9+(b.p.y-2.2)*0.6:b.p.y,ten=clamp((h-0.9)/0.55,-1,1);
       let dI=team===0?iy:(Math.random()<0.15?rnd(-1,1):0),zI=team===0?ix:rnd(-.3,.3);
-      const depth=dI>0.45?0.6:dI<-0.45?2.6:1.4,depthName=dI>0.45?'courte':dI<-0.45?'longue':'';
+      let depth=dI>0.45?0.6:dI<-0.45?2.6:1.4;
+      if(AIM){depth=clamp(-AIM.x,-0.6,4);zI=clamp((AIM.z-0.6)/2,-2,2);}
+      const depthName=depth<0.9?'courte':depth>2.2?'longue':'';
       const tempoName=ten>0.45?'tendue':ten<-0.45?'haute':'';
       const risk=(1+0.5*Math.max(0,ten))*(depth<1?1.25:depth>2?0.8:1);
       const [ex,ez]=err((1-q)*2.4*risk);
@@ -810,17 +818,20 @@ function contact(pl,kind,q,over){
       recep={name:[over?'en touche haute':'',depthName,tempoName].filter(Boolean).join(' '),tgt};
     }
   }else if(kind==='dump'){
-    const [ex,ez]=err((1-q)*1.0);tgt=new V3(dir*(iy>0.45?4.5:rnd(1.2,2.4))+ex,R,ix*3.4+ez);T=iy>0.45?0.75:0.95;spin=iy>0.45?3:-1;
-    setName=iy>0.45?'deuxième main appuyée':'deuxième main';
+    const [ex,ez]=err((1-q)*1.0),deep=AIM?AIM.x>3.5:iy>0.45;
+    tgt=AIM?new V3(clamp(AIM.x,1,8.5)+ex,R,clamp(AIM.z,-4.6,4.6)+ez):new V3(dir*(iy>0.45?4.5:rnd(1.2,2.4))+ex,R,ix*3.4+ez);T=deep?0.75:0.95;spin=deep?3:-1;
+    setName=deep?'deuxième main appuyée':'deuxième main';
   }else if(kind==='set'){
-    let c=setChoice(H,ix,iy);const zs=team===0?1:-1;
+    let c=AIM?setFromAim(AIM):setChoice(H,ix,iy);const zs=team===0?1:-1;
     if(c.z>1.5&&!teamOf(team).some(p=>p.front&&p.role==='O'))c={x:3.4,z:3.0,T:1.15,risk:1.1,name:'arrière droite',bonus:.04};const [ex,ez]=err((1-q)*1.6*c.risk);
     tgt=new V3(s*c.x+ex*0.6,3.0,c.z*zs+ez);T=c.T;S.setBonus=H?c.bonus:0;setName=c.name;
   }else{
     if(H){
-      const A=S.atk||{type:'E',desc:false},type=A.type==='Z'?(iy<-0.45?'feinte':'placée'):'smash';
-      let depth=iy>0.45?7.9:iy<-0.45?(type==='feinte'?2.0:3.2):5.6;
-      const tz=ix*3.7,az=pl.pos.z;
+      const A=S.atk||{type:'E',desc:false};
+      let type=A.type==='Z'?(iy<-0.45?'feinte':'placée'):'smash';
+      let depth=iy>0.45?7.9:iy<-0.45?(type==='feinte'?2.0:3.2):5.6,tz=ix*3.7;
+      if(AIM&&AIM.x>0.3){if(A.type==='Z'&&AIM.x<3)type='feinte';depth=clamp(AIM.x,type==='smash'?3.0:1.5,9.6);tz=clamp(AIM.z,-4.8,4.8);}
+      const az=pl.pos.z;
       const lane=Math.abs(tz)<1.2?'centre':(Math.sign(tz)===Math.sign(az)&&Math.abs(az)>1.5?'ligne':(depth<4?'petite diagonale':'diagonale'));
       if(type==='smash'){const [ex,ez]=err((1-q)*2.2);tgt=new V3(dir*depth+ex,R,tz+ez);T=0.36+(1-q)*0.3+(A.desc?0.1:0);spin=5;}
       else if(type==='placée'){const [ex,ez]=err((1-q)*1.0);tgt=new V3(dir*depth+ex,R,tz+ez);T=0.72+(A.desc?0.08:0);spin=3;}
@@ -867,14 +878,14 @@ function nextRally(){
   $('meta').textContent=S.mode==='player'?'4 contre 4 · tu es le n°'+S.me.num+' · service n°'+sv.num:'Bleu en '+rotLabel(0)+' · Rouge en '+rotLabel(1)+' · service n°'+sv.num;
   S.phase='serve';S.plan=null;S.lock=false;S.netHit=false;S.antenna=false;S.lastTeam=-1;S.touches=0;
   S.aiServeT=1.4;landMark.visible=false;S.ball.v.set(0,0,0);
-  if(isHuman(sv))setCallRaw('SERVICE','R pour lancer, puis R en haut du lancer');else setCall(null);
+  if(isHuman(sv))setCallRaw('SERVICE',isTouchUI()?'R pour lancer, puis R en haut du lancer':'Vise · clic gauche pour lancer, puis clic gauche en haut du lancer');else setCall(null);
   updateScore();
 }
 function holdBall(){const sv=S.serverP;S.ball.p.set(sv.pos.x-own(sv.team)*0.35,1.45,sv.pos.z);}
 function toss(){
   const sv=S.serverP;S.ball.p.set(sv.pos.x-own(sv.team)*0.3,1.5,sv.pos.z);S.ball.v.set(0,5.2,0);S.shot=null;S.flightT=0;
   S.phase='toss';S.aiHit=false;sfx('toss');
-  if(isHuman(sv))setCallRaw('FRAPPE','R au sommet du lancer');
+  if(isHuman(sv))setCallRaw('FRAPPE',isTouchUI()?'R au sommet du lancer':'Clic gauche au sommet du lancer');
 }
 function serveHit(qAi){
   const b=S.ball,sv=S.serverP;let q;
@@ -944,11 +955,15 @@ function contacts(){
     }else if(buffered&&S.pressKey==='Z'&&P.touch===2&&b.p.distanceTo(head)<=1.3&&b.p.y>1.5){
       // deuxième main : le passeur renvoie directement chez l'adversaire
       S.pressT=-9;contact(pl,'dump',clamp(1-b.p.distanceTo(head)/1.3,0,1));
-    }else if(buffered&&S.pressKey==='A'&&b.p.y>1.5&&b.p.distanceTo(head)<=1.3){
+    }else if(buffered&&S.pressKey==='P'&&b.p.y>1.2&&b.p.distanceTo(head)<=1.3){
+      // E : touche haute ; en 2e touche, viser le camp adverse = deuxième main
+      const q=clamp(1-b.p.distanceTo(head)/1.3,0,1),a=mouseAim();S.pressT=-9;
+      if(P.touch===2&&a&&a.x>0.3)contact(pl,'dump',q);else if(P.touch===2)contact(pl,'set',q);else contact(pl,'bump',q,true);
+    }else if(buffered&&S.pressKey==='A'&&b.p.y>(mouseAim()?1.75:1.5)&&b.p.distanceTo(head)<=1.3){
       // ballon haut : touche haute
       const q=clamp(1-b.p.distanceTo(head)/1.3,0,1);S.pressT=-9;
       if(P.touch===2)contact(pl,'set',q);else contact(pl,'bump',q,true);
-    }else if(buffered&&S.pressKey==='A'&&hd<=1.5&&b.p.y<=1.5&&b.p.y>0.15){
+    }else if(buffered&&S.pressKey==='A'&&hd<=1.5&&b.p.y<=(mouseAim()?1.75:1.5)&&b.p.y>0.15){
       // ballon bas : manchette
       const q=clamp(1-hd/1.5,0,1)*0.8+0.2*clamp(1-Math.abs(b.p.y-0.9)/1.6,0,1);
       S.pressT=-9;contact(pl,'bump',q);
@@ -1030,7 +1045,7 @@ function setupHumanBlock(){
   const partner=front.filter(p=>p!==ctrl).sort((a,b)=>Math.abs(a.pos.z)-Math.abs(b.pos.z))[0];
   S.hb={ctrl,partner:partner||null,active:true,autoJ:false,partnerAt:null};
   if(!isHuman(ctrl)){setCall(null);return;}
-  setCallRaw('CONTRE',S.pro?'←→ suis l\'attaquant · E pour sauter juste après lui':'Placement et saut automatiques · ←→ corriger · E pour sauter toi-même');
+  const jk=isTouchUI()?'E':'Espace';setCallRaw('CONTRE',S.pro?'Suis l\'attaquant · '+jk+' pour sauter juste après lui':'Placement et saut automatiques · déplace-toi pour corriger · '+jk+' pour sauter toi-même');
 }
 function hbJump(){
   const H=S.hb;if(!H||H.ctrl.jumpT>=0)return;
@@ -1154,7 +1169,7 @@ function step(dt){
   if(S.phase==='toss'){
     integrate(dt);
     if(!isHuman(S.serverP)&&b.v.y<=0.3&&!S.aiHit)serveHit(rnd(.55,.95));
-    else if(b.p.y<1.2&&b.v.y<0){S.phase='serve';S.aiServeT=0.8;if(isHuman(S.serverP))setCallRaw('SERVICE','Relance : R pour lancer');}
+    else if(b.p.y<1.2&&b.v.y<0){S.phase='serve';S.aiServeT=0.8;if(isHuman(S.serverP))setCallRaw('SERVICE',isTouchUI()?'Relance : R pour lancer':'Relance : clic gauche pour lancer');}
     return;
   }
   if(S.phase==='play'){
@@ -1171,11 +1186,48 @@ function step(dt){
 const keys={},stick={x:0,y:0};
 function inputVec(){
   let ix=0,iy=0;
-  if(keys.ArrowRight)ix+=1;if(keys.ArrowLeft)ix-=1;
-  if(keys.ArrowUp)iy+=1;if(keys.ArrowDown)iy-=1;
+  if(keys.ArrowRight||keys.KeyD)ix+=1;if(keys.ArrowLeft||keys.KeyA)ix-=1;
+  if(keys.ArrowUp||keys.KeyW)iy+=1;if(keys.ArrowDown||keys.KeyS)iy-=1;
   ix+=stick.x;iy+=stick.y;const m=Math.hypot(ix,iy);if(m>1){ix/=m;iy/=m;}
   // relatif à la caméra : iy = vers le filet adverse (+x), ix = latéral (+z)
   return{ix:camR.z*ix+camF.z*iy,iy:camR.x*ix+camF.x*iy};
+}
+/* Visée à la souris : point visé au sol (rayon caméra → plan du terrain) */
+const MOUSE={on:false,x:0,y:0,p:new V3(),ok:false};
+const _ray=new THREE.Raycaster(),_ndc=new THREE.Vector2(),_gp=new THREE.Plane(new V3(0,1,0),0);
+const isTouchUI=()=>document.documentElement.classList.contains('touch');
+function updAim(){
+  if(!MOUSE.on)return;_ndc.set(MOUSE.x/innerWidth*2-1,-(MOUSE.y/innerHeight)*2+1);_ray.setFromCamera(_ndc,cam);
+  MOUSE.ok=!!_ray.ray.intersectPlane(_gp,MOUSE.p);if(MOUSE.ok){MOUSE.p.x=clamp(MOUSE.p.x,-11,11);MOUSE.p.z=clamp(MOUSE.p.z,-6,6);}
+}
+const mouseAim=()=>MOUSE.on&&MOUSE.ok&&!isTouchUI()?MOUSE.p.clone():null;
+// passe choisie selon le point visé dans son camp : près du filet = tendue, plus loin = haute, centre = rapide, derrière les 3 m = pipe
+function setFromAim(a){
+  const X=-a.x,Z=a.z;
+  if(X>2.6&&Math.abs(Z)<2.4)return SETS.PI;
+  if(Math.abs(Z)<1.5)return SETS.CR;
+  return Z<0?(X<0.8?SETS.GT:SETS.GH):(X<0.8?SETS.DT:SETS.DH);
+}
+const reticle=new THREE.Group();
+{const rm=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.9,depthWrite:false,toneMapped:false});
+ const r=new THREE.Mesh(new THREE.RingGeometry(0.26,0.33,32),rm);r.rotation.x=-Math.PI/2;reticle.add(r);
+ const d=new THREE.Mesh(new THREE.CircleGeometry(0.06,12),rm);d.rotation.x=-Math.PI/2;reticle.add(d);
+ reticle.userData.m=rm;reticle.visible=false;reticle.renderOrder=5;scene.add(reticle);}
+function aimIntent(a){
+  if((S.phase==='serve'||S.phase==='toss')&&isHuman(S.serverP))return a.x>0.3?'Service':'';
+  const P=humanPlan();if(!P)return '';
+  if(P.kind==='spike')return a.x>0.3?(P.player.jumpT>=0?'Frappe':'Attaque')+(a.x<3?' courte':a.x>7?' au fond':''):'';
+  if(P.touch===2&&P.kind==='set')return a.x>0.3?'Deuxième main':'Passe '+setFromAim(a).name;
+  if(P.touch===1){const X=-a.x;return a.x>0?'Réception vers le filet adverse !':'Réception'+(X<0.9?' courte':X>2.2?' longue':'');}
+  return a.x>0.3?'Renvoi':'';
+}
+function updReticle(){
+  const a=mouseAim(),tag=$('aimTag');
+  const show=!!a&&$('ov').hidden&&(S.phase==='play'||S.phase==='serve'||S.phase==='toss');
+  reticle.visible=show;if(!show){tag.hidden=true;return;}
+  reticle.position.set(a.x,0.02,a.z);
+  const txt=aimIntent(a);reticle.userData.m.color.setHex(txt?0xffe14d:0xffffff);
+  tag.hidden=!txt;if(txt){tag.textContent=txt;tag.style.transform=`translate(${MOUSE.x+16}px,${MOUSE.y+14}px)`;}
 }
 function splitStep(){
   if(teamOf(0).some(p=>p.hopT>=0))return;
@@ -1186,6 +1238,12 @@ function humanPlan(){const P=S.plan;return S.phase==='play'&&P&&isHuman(P.player
 function oppBall(){return((S.phase==='serve'||S.phase==='toss')&&S.server===1)||(S.phase==='play'&&!humanPlan());}
 function act(k){
   if(S.phase==='intro')return;
+  // souris / clavier : CLICK = clic gauche, RCLICK = clic droit, PASS = passe, JUMP = saut
+  {const P0=humanPlan(),air=P0&&P0.kind==='spike'&&P0.player.jumpT>=0;
+   if(k==='CLICK'){if((S.phase==='serve'||S.phase==='toss')&&isHuman(S.serverP))k='R';else if(air){S.hitReq='E';return;}else k='A';}
+   else if(k==='RCLICK'){if(air){S.hitReq='Z';return;}k='P';}
+   else if(k==='PASS')k='P';
+   else if(k==='JUMP'){if(air)return;k='E';}}
   // mode Joueur : appuyer près du ballon destiné à un coéquipier, c'est « j'ai ! »
   const Q=S.plan;
   if(S.mode==='player'&&S.phase==='play'&&Q&&Q.team===0&&Q.player!==S.me&&S.me!==Q.excl&&k!=='R'&&hdist(S.me.pos,Q.P)<3.2&&Q.player.jumpT<0){Q.player=S.me;Q.claimed=true;setCall(Q.kind,Q.touch);}
@@ -1209,12 +1267,11 @@ function act(k){
   if(k==='Z'&&P&&P.kind==='spike'&&P.player.jumpT>=0){S.hitReq='Z';return;}
   if(k==='A'&&S.pro&&oppBall()&&!S.hb){splitStep();return;}
   if(k==='Z'&&!(P&&P.touch===2))return;
-  if((k==='A'||k==='Z')&&P){
+  if((k==='A'||k==='Z'||k==='P')&&P){
     if(P.kind==='spike'&&P.player.jumpT<0&&!P.player.approach){P.kind='bump';P.h=0.9;setCall('bump',3);}
     S.pressT=S.t;S.pressKey=k;if(k==='A'){S.holding=true;S.downT=S.t;}
   }
 }
-const KEYMAP={a:'A',z:'Z',e:'E',r:'R'};
 addEventListener('keydown',e=>{
   keys[e.code]=true;
   if(e.code==='KeyC'&&!e.repeat){cycleCam();return;}
@@ -1225,11 +1282,21 @@ addEventListener('keydown',e=>{
     e.preventDefault();if(e.repeat)return;
     if(S.phase==='intro'||$('ov').hidden===false){if($('goTeam'))return;startGame(S.mode,S.me);return;}
   }
-  const k=KEYMAP[(e.key||'').toLowerCase()];
-  if(k){e.preventDefault();if(!e.repeat)act(k);}
-  if(e.code.startsWith('Arrow'))e.preventDefault();
+  if(e.code==='Space'){act('JUMP');return;}
+  if(e.code==='KeyE'){e.preventDefault();if(!e.repeat)act('PASS');return;}
+  if(e.code==='KeyR'){e.preventDefault();if(!e.repeat)act('R');return;}
+  if(e.code.startsWith('Arrow')||['KeyW','KeyA','KeyS','KeyD'].includes(e.code))e.preventDefault();
 });
-addEventListener('keyup',e=>{keys[e.code]=false;if(KEYMAP[(e.key||'').toLowerCase()]==='A')S.holding=false;});
+addEventListener('keyup',e=>{keys[e.code]=false;});
+// souris : visée + clics (le clic gauche maintenu = plongeon en défense)
+addEventListener('pointermove',e=>{if(e.pointerType!=='mouse')return;MOUSE.on=true;MOUSE.x=e.clientX;MOUSE.y=e.clientY;},{passive:true});
+canvas.addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='mouse')return;e.preventDefault();try{window.focus();}catch(_){}
+  MOUSE.on=true;MOUSE.x=e.clientX;MOUSE.y=e.clientY;updAim();
+  if(e.button===0)act('CLICK');else if(e.button===2)act('RCLICK');
+});
+addEventListener('pointerup',e=>{if(e.pointerType==='mouse'&&e.button===0)S.holding=false;});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;});
 
 const stickEl=$('stick'),knob=$('knob');let stickId=null;
@@ -1257,9 +1324,10 @@ function setCall(kind,touch){
   if(!kind){setCallRaw('','');return;}
   if(kind==='bump'){
     const k=touch===1?(S.lastKind==='serve'?'RÉCEPTION':'DÉFENSE'):touch===3?'RENVOIE':'RATTRAPE';
-    setCallRaw(k,touch===1?'A au contact (haut = touche haute, bas = manchette) · ↑ courte · ↓ longue · ←→ le long du filet':'A au contact · maintenir A = plongeon');
-  }else if(kind==='set')setCallRaw('PASSE','A au contact · ← gauche · → droite · ↑ centre rapide · ↓ pipe · diagonale avant = tendue · Z = deuxième main');
-  else setCallRaw('ATTAQUE','E '+(S.pro?'élan':'saut')+', puis E pour frapper · Z en l\'air = placée (↓ feinte) · ←→ viser · ↑ fond');
+    if(isTouchUI())setCallRaw(k,touch===1?'A au contact (haut = touche haute, bas = manchette) · ↑ courte · ↓ longue · ←→ le long du filet':'A au contact · maintenir A = plongeon');
+    else setCallRaw(k,touch===1?'Vise ton camp · clic gauche = manchette · E = touche haute':'Clic gauche au contact · maintenir = plongeon');
+  }else if(kind==='set')setCallRaw('PASSE',isTouchUI()?'A au contact · ← gauche · → droite · ↑ centre rapide · ↓ pipe · diagonale avant = tendue · Z = deuxième main':'Vise la zone de passe · E au contact · viser le camp adverse = deuxième main');
+  else setCallRaw('ATTAQUE',isTouchUI()?'E '+(S.pro?'élan':'saut')+', puis E pour frapper · Z en l\'air = placée (↓ feinte) · ←→ viser · ↑ fond':'Espace '+(S.pro?'élan':'saut')+' · clic gauche en l\'air pour frapper où tu vises · clic droit = placée');
 }
 function updateScore(){
   $('s0').textContent=S.score[0];$('s1').textContent=S.score[1];
@@ -1452,6 +1520,7 @@ function render(dt){
   if(FX.shake>0.002){cam.position.x+=(Math.random()-.5)*FX.shake;cam.position.y+=(Math.random()-.5)*FX.shake;FX.shake*=Math.exp(-9*dt);}
   cam.getWorldDirection(_d);_d.y=0;if(_d.lengthSq()>1e-4){_d.normalize();camF.copy(_d);camR.set(-_d.z,0,_d.x);}
   landMark.material.opacity=aid?0.8:0;
+  updAim();updReticle();
   animateCrowd(performance.now()/1000);
   if(outlineFx)outlineFx.render(scene,cam);else renderer.render(scene,cam);
 }
